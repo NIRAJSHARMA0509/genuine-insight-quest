@@ -9,38 +9,83 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ConfigureRouteImport } from './routes/configure'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as InterviewSlugRouteImport } from './routes/interview.$slug'
+import { Route as InterviewSlugCompleteRouteImport } from './routes/interview.$slug.complete'
 
+const ConfigureRoute = ConfigureRouteImport.update({
+  id: '/configure',
+  path: '/configure',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InterviewSlugRoute = InterviewSlugRouteImport.update({
+  id: '/interview/$slug',
+  path: '/interview/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InterviewSlugCompleteRoute = InterviewSlugCompleteRouteImport.update({
+  id: '/complete',
+  path: '/complete',
+  getParentRoute: () => InterviewSlugRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/configure': typeof ConfigureRoute
+  '/interview/$slug': typeof InterviewSlugRouteWithChildren
+  '/interview/$slug/complete': typeof InterviewSlugCompleteRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/configure': typeof ConfigureRoute
+  '/interview/$slug': typeof InterviewSlugRouteWithChildren
+  '/interview/$slug/complete': typeof InterviewSlugCompleteRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/configure': typeof ConfigureRoute
+  '/interview/$slug': typeof InterviewSlugRouteWithChildren
+  '/interview/$slug/complete': typeof InterviewSlugCompleteRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/configure'
+    | '/interview/$slug'
+    | '/interview/$slug/complete'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/configure' | '/interview/$slug' | '/interview/$slug/complete'
+  id:
+    | '__root__'
+    | '/'
+    | '/configure'
+    | '/interview/$slug'
+    | '/interview/$slug/complete'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ConfigureRoute: typeof ConfigureRoute
+  InterviewSlugRoute: typeof InterviewSlugRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/configure': {
+      id: '/configure'
+      path: '/configure'
+      fullPath: '/configure'
+      preLoaderRoute: typeof ConfigureRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,11 +93,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/interview/$slug': {
+      id: '/interview/$slug'
+      path: '/interview/$slug'
+      fullPath: '/interview/$slug'
+      preLoaderRoute: typeof InterviewSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/interview/$slug/complete': {
+      id: '/interview/$slug/complete'
+      path: '/complete'
+      fullPath: '/interview/$slug/complete'
+      preLoaderRoute: typeof InterviewSlugCompleteRouteImport
+      parentRoute: typeof InterviewSlugRoute
+    }
   }
 }
 
+interface InterviewSlugRouteChildren {
+  InterviewSlugCompleteRoute: typeof InterviewSlugCompleteRoute
+}
+
+const InterviewSlugRouteChildren: InterviewSlugRouteChildren = {
+  InterviewSlugCompleteRoute: InterviewSlugCompleteRoute,
+}
+
+const InterviewSlugRouteWithChildren = InterviewSlugRoute._addFileChildren(
+  InterviewSlugRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ConfigureRoute: ConfigureRoute,
+  InterviewSlugRoute: InterviewSlugRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
