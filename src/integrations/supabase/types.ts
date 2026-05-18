@@ -14,7 +14,104 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      interview_sessions: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          full_transcript: Json | null
+          id: string
+          proctoring_flags: Json | null
+          score_report: Json | null
+          started_at: string | null
+          status: string
+          student_email: string | null
+          student_name: string | null
+          student_reference: string | null
+          university_id: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          full_transcript?: Json | null
+          id?: string
+          proctoring_flags?: Json | null
+          score_report?: Json | null
+          started_at?: string | null
+          status?: string
+          student_email?: string | null
+          student_name?: string | null
+          student_reference?: string | null
+          university_id?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          full_transcript?: Json | null
+          id?: string
+          proctoring_flags?: Json | null
+          score_report?: Json | null
+          started_at?: string | null
+          status?: string
+          student_email?: string | null
+          student_name?: string | null
+          student_reference?: string | null
+          university_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_sessions_university_id_fkey"
+            columns: ["university_id"]
+            isOneToOne: false
+            referencedRelation: "universities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      universities: {
+        Row: {
+          configuration: Json
+          contact_email: string | null
+          created_at: string
+          id: string
+          institution_name: string
+          intake_year: string | null
+          interview_mode: string
+          logo_url: string | null
+          programme_name: string | null
+          slug: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          configuration?: Json
+          contact_email?: string | null
+          created_at?: string
+          id?: string
+          institution_name: string
+          intake_year?: string | null
+          interview_mode: string
+          logo_url?: string | null
+          programme_name?: string | null
+          slug: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          configuration?: Json
+          contact_email?: string | null
+          created_at?: string
+          id?: string
+          institution_name?: string
+          intake_year?: string | null
+          interview_mode?: string
+          logo_url?: string | null
+          programme_name?: string | null
+          slug?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
