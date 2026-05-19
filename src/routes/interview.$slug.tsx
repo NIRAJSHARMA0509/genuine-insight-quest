@@ -198,9 +198,9 @@ function InterviewRoom() {
     return () => { if (timerRef.current) window.clearInterval(timerRef.current); };
   }, [phase]);
 
-  /* ---------------- Thinking countdown (auto-start after 30s) ---------------- */
+  /* ---------------- Thinking countdown (auto-start after Alex finishes) ---------------- */
   useEffect(() => {
-    if (phase !== "ready") return;
+    if (phase !== "ready" || isSpeaking) return;
     setThinkLeft(THINK_LIMIT_S);
     thinkTimerRef.current = window.setInterval(() => {
       setThinkLeft((t) => {
@@ -213,7 +213,7 @@ function InterviewRoom() {
       });
     }, 1000);
     return () => { if (thinkTimerRef.current) { window.clearInterval(thinkTimerRef.current); thinkTimerRef.current = null; } };
-  }, [phase]);
+  }, [phase, isSpeaking]);
 
   /* ---------------- Proctoring: tab-switch / blur / second display ---------------- */
   const suspendInterview = useCallback(async (reason: string) => {
