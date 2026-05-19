@@ -198,9 +198,9 @@ function InterviewRoom() {
     return () => { if (timerRef.current) window.clearInterval(timerRef.current); };
   }, [phase]);
 
-  /* ---------------- Thinking countdown (auto-start after 30s) ---------------- */
+  /* ---------------- Thinking countdown (auto-start after Alex finishes) ---------------- */
   useEffect(() => {
-    if (phase !== "ready") return;
+    if (phase !== "ready" || isSpeaking) return;
     setThinkLeft(THINK_LIMIT_S);
     thinkTimerRef.current = window.setInterval(() => {
       setThinkLeft((t) => {
@@ -213,7 +213,7 @@ function InterviewRoom() {
       });
     }, 1000);
     return () => { if (thinkTimerRef.current) { window.clearInterval(thinkTimerRef.current); thinkTimerRef.current = null; } };
-  }, [phase]);
+  }, [phase, isSpeaking]);
 
   /* ---------------- Proctoring: tab-switch / blur / second display ---------------- */
   const suspendInterview = useCallback(async (reason: string) => {
@@ -382,10 +382,16 @@ function InterviewRoom() {
               <span className="label-mono">{phase === "recording" ? "Recording" : "Standby"}</span>
             </div>
             {phase === "recording" && <Timer s={timeLeft} />}
-            {phase === "ready" && (
-              <span className="font-mono text-xs tabular-nums text-muted-foreground">
-                Auto-starts in {String(thinkLeft).padStart(2, "0")}s
-              </span>
+            {phase === "ready" && !isSpeaking && (
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="flex items-center gap-2 rounded-full bg-warning/15 px-3 py-1.5 ring-1 ring-warning/40"
+              >
+                <span className="h-2 w-2 animate-pulse rounded-full bg-warning" />
+                <span className="text-xs font-medium text-warning">Auto-starts in</span>
+                <span className="font-mono text-base font-bold tabular-nums text-warning">{String(thinkLeft).padStart(2, "0")}s</span>
+              </motion.div>
             )}
           </div>
           <div className="relative mt-4 flex-1 overflow-hidden rounded-[16px] bg-background">
@@ -418,10 +424,14 @@ function InterviewRoom() {
             <div className="mt-8 flex flex-col items-center gap-2">
               {phase === "ready" && (
                 <>
-                  <button onClick={startRecording} className="inline-flex w-full max-w-sm items-center justify-center gap-2 rounded-[10px] bg-primary px-6 py-4 text-sm font-medium text-primary-foreground hover:opacity-90">
+                  <button onClick={startRecording} disabled={isSpeaking} className="inline-flex w-full max-w-sm items-center justify-center gap-2 rounded-[10px] bg-primary px-6 py-4 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-40">
                     <Mic className="h-4 w-4" /> I am ready — start recording
                   </button>
-                  <p className="mt-2 text-xs text-muted-foreground">Recording will start automatically in {thinkLeft}s. You'll then have up to 2 minutes to answer.</p>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {isSpeaking
+                      ? "Listen to Alex — the 30-second timer starts when the question finishes."
+                      : `Recording auto-starts in ${thinkLeft}s. You'll then have up to 2 minutes to answer.`}
+                  </p>
                 </>
               )}
               {phase === "recording" && (
