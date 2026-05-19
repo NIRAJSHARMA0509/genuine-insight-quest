@@ -48,9 +48,15 @@ export interface University {
   updated_at: string;
 }
 
-export const DEFAULT_INTRO = `Hello, and welcome. My name is Alex, and I will be conducting your interview today. Before we begin, I want to explain how this works so you feel completely at ease. I will ask you a series of questions, one at a time. For each question, please take as long as you need to think. When you are ready, press the Start Recording button on your screen. Your camera and audio will begin recording. Once you have finished, press Submit Answer. There are no right or wrong answers — I simply want to understand you. Please be yourself. Let us begin.`;
+export const DEFAULT_INTRO = `Hi there, and a very warm welcome. My name is Alex, and I'll be your interviewer today. Thank you for taking the time to join me — I know these conversations can feel a little nerve-wracking, so let me walk you through how it works so you feel completely at ease.
 
-export const DEFAULT_CLOSING = `That brings us to the end of our interview today. Thank you so much for your time and for sharing your thoughts so openly. It has been a genuine pleasure speaking with you. One of our team members will review your interview and be in touch with you shortly regarding next steps. We wish you all the very best.`;
+I'll ask you a few questions, one at a time. For each question, you'll have up to thirty seconds to gather your thoughts and press the "Start Recording" button. If you don't press it within thirty seconds, don't worry — recording will simply begin automatically. You'll then have up to two minutes to share your answer, and when you're ready, just press "Submit Answer".
+
+One important thing I need to mention: throughout this interview, your camera, microphone, and screen are being continuously monitored. If you minimise this window, switch to another tab or application, connect a second display, or share your screen with anyone else, the interview will be automatically suspended. So please stay right here on this tab, keep your face in view, and just be yourself.
+
+There are no trick questions, and there are no right or wrong answers — I genuinely want to get to know you. Take a deep breath, relax, and whenever you're ready, let's begin.`;
+
+export const DEFAULT_CLOSING = `And that brings us to the end of our conversation. Thank you so much — really — for your time today, and for sharing your thoughts so openly with me. It's been a genuine pleasure getting to know you. One of our team members will carefully review your interview and will be in touch very soon about next steps. Until then, take care, and we wish you all the very best.`;
 
 export function slugify(s: string): string {
   return s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60);
