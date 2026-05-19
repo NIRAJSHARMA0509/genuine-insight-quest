@@ -1,10 +1,14 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Mic, CheckCircle, Camera, Loader2 } from "lucide-react";
+import { Mic, CheckCircle, Camera, Loader2, ShieldAlert } from "lucide-react";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import type { FixedQuestion, InterviewConfiguration, University } from "@/lib/types";
 import { DEFAULT_CLOSING, DEFAULT_INTRO } from "@/lib/types";
+import { synthesizeAlexVoice } from "@/lib/tts.functions";
+import alexAvatar from "@/assets/alex-avatar.jpg";
 
 export const Route = createFileRoute("/interview/$slug")({
   head: () => ({
@@ -16,13 +20,27 @@ export const Route = createFileRoute("/interview/$slug")({
   component: InterviewRoom,
 });
 
-type Phase = "loading" | "notfound" | "permission" | "identity" | "intro_playing" | "ready" | "recording" | "transitioning" | "closing";
+type Phase =
+  | "loading"
+  | "notfound"
+  | "permission"
+  | "identity"
+  | "intro_playing"
+  | "ready"
+  | "recording"
+  | "transitioning"
+  | "closing"
+  | "suspended";
 
 interface Identity { name: string; email: string; reference: string; }
+
+const THINK_LIMIT_S = 30;   // user has 30s to press "Start"
+const RECORD_CAP_S = 120;   // hard ceiling on any answer
 
 function InterviewRoom() {
   const { slug } = Route.useParams();
   const navigate = useNavigate();
+  const fetchVoice = useServerFn(synthesizeAlexVoice);
 
   const [phase, setPhase] = useState<Phase>("loading");
   const [uni, setUni] = useState<University | null>(null);
@@ -31,7 +49,10 @@ function InterviewRoom() {
 
   const [questionIndex, setQuestionIndex] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
+  const [thinkLeft, setThinkLeft] = useState(THINK_LIMIT_S);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const [transcript, setTranscript] = useState<{ question: string; answer_blob_url?: string; duration_s?: number }[]>([]);
+  const [suspendReason, setSuspendReason] = useState<string>("");
 
   const streamRef = useRef<MediaStream | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -39,8 +60,13 @@ function InterviewRoom() {
   const chunksRef = useRef<Blob[]>([]);
   const recordStartRef = useRef<number>(0);
   const timerRef = useRef<number | null>(null);
+  const thinkTimerRef = useRef<number | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const violationsRef = useRef(0);
+  const phaseRef = useRef<Phase>("loading");
+  useEffect(() => { phaseRef.current = phase; }, [phase]);
 
-  // Load configuration
+  /* ---------------- Load configuration ---------------- */
   useEffect(() => {
     supabase.from("universities").select("*").eq("slug", slug).maybeSingle().then(({ data, error }) => {
       if (error || !data) { setPhase("notfound"); return; }
@@ -49,101 +75,78 @@ function InterviewRoom() {
     });
   }, [slug]);
 
-  // Build the question list (v1: openers for reasoning mode; AI follow-ups come next iteration)
   const questions: FixedQuestion[] = useMemo(() => {
     if (!uni) return [];
     const cfg = uni.configuration as InterviewConfiguration;
-    if (cfg.mode === "fixed") return cfg.fixed_questions ?? [];
-    if (cfg.mode === "clarifying") return (cfg.clarifying_questions ?? []).map((q) => ({ id: q.id, question_text: q.question_text, time_limit_seconds: q.time_limit_seconds }));
-    return cfg.opening_questions ?? [];
+    const base =
+      cfg.mode === "fixed" ? cfg.fixed_questions ?? []
+      : cfg.mode === "clarifying" ? (cfg.clarifying_questions ?? []).map((q) => ({ id: q.id, question_text: q.question_text, time_limit_seconds: q.time_limit_seconds }))
+      : cfg.opening_questions ?? [];
+    // Enforce 2-minute cap on every answer
+    return base.map((q) => ({ ...q, time_limit_seconds: Math.min(q.time_limit_seconds || RECORD_CAP_S, RECORD_CAP_S) }));
   }, [uni]);
 
   const currentQ = questions[questionIndex];
   const totalQs = questions.length;
-  const introText = (uni?.configuration as InterviewConfiguration | undefined)?.intro_message || DEFAULT_INTRO.replace("[Institution Name]", uni?.institution_name ?? "the institution");
+  const introText = (uni?.configuration as InterviewConfiguration | undefined)?.intro_message || DEFAULT_INTRO;
   const closingText = (uni?.configuration as InterviewConfiguration | undefined)?.closing_message || DEFAULT_CLOSING;
 
-  /* Speech synthesis */
-  const speak = useCallback((text: string, onEnd?: () => void) => {
-    if (typeof window === "undefined" || !window.speechSynthesis) { onEnd?.(); return; }
-    window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.rate = 0.98; u.pitch = 1; u.volume = 1;
-    const voices = window.speechSynthesis.getVoices();
-    const preferred = voices.find((v) => /Google UK English Female|Samantha|Karen|Daniel/i.test(v.name)) ?? voices.find((v) => v.lang.startsWith("en"));
-    if (preferred) u.voice = preferred;
-    u.onend = () => onEnd?.();
-    window.speechSynthesis.speak(u);
-  }, []);
+  /* ---------------- ElevenLabs voice playback ---------------- */
+  const speak = useCallback(async (text: string, onEnd?: () => void) => {
+    try {
+      setIsSpeaking(true);
+      const { audioBase64 } = await fetchVoice({ data: { text } });
+      if (audioRef.current) { try { audioRef.current.pause(); } catch { /* noop */ } }
+      const audio = new Audio(`data:audio/mpeg;base64,${audioBase64}`);
+      audioRef.current = audio;
+      const finish = () => { setIsSpeaking(false); onEnd?.(); };
+      audio.onended = finish;
+      audio.onerror = finish;
+      await audio.play();
+    } catch (e) {
+      console.error("TTS failed:", e);
+      setIsSpeaking(false);
+      toast.error("Audio playback failed. Continuing without voice.");
+      onEnd?.();
+    }
+  }, [fetchVoice]);
 
-  /* Permission gate → camera setup */
+  /* ---------------- Permission gate ---------------- */
   const requestPermissions = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280 }, audio: true });
       streamRef.current = stream;
       setPhase("identity");
-    } catch (e) {
-      alert("Camera & microphone access is required to begin the interview.");
+    } catch {
+      toast.error("Camera & microphone access is required to begin the interview.");
     }
   }, []);
 
-  /* Attach camera to video element whenever it exists */
   useEffect(() => {
     if (videoRef.current && streamRef.current && !videoRef.current.srcObject) {
       videoRef.current.srcObject = streamRef.current;
     }
   });
 
-  /* Start interview after identity */
-  const beginInterview = useCallback(async () => {
-    if (!uni) return;
-    const { data, error } = await supabase.from("interview_sessions").insert({
-      university_id: uni.id,
-      student_name: identity.name,
-      student_email: identity.email,
-      student_reference: identity.reference,
-      started_at: new Date().toISOString(),
-      status: "in_progress",
-    }).select("id").single();
-    if (error) { alert(error.message); return; }
-    setSessionId(data.id);
-    setPhase("intro_playing");
-    speak(introText, () => {
-      if (currentQ) {
-        speak(currentQ.question_text, () => setPhase("ready"));
-      } else {
-        setPhase("closing");
-      }
-    });
-  }, [uni, identity, introText, currentQ, speak]);
-
-  /* Timer */
-  useEffect(() => {
-    if (phase !== "recording") return;
-    timerRef.current = window.setInterval(() => {
-      setTimeLeft((t) => {
-        if (t <= 1) {
-          submitAnswer();
-          return 0;
-        }
-        return t - 1;
-      });
-    }, 1000);
-    return () => { if (timerRef.current) window.clearInterval(timerRef.current); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase]);
-
+  /* ---------------- Recording helpers ---------------- */
   const startRecording = useCallback(() => {
     if (!streamRef.current || !currentQ) return;
+    if (thinkTimerRef.current) { window.clearInterval(thinkTimerRef.current); thinkTimerRef.current = null; }
     chunksRef.current = [];
-    const mr = new MediaRecorder(streamRef.current, { mimeType: MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus") ? "video/webm;codecs=vp9,opus" : "video/webm" });
+    const mr = new MediaRecorder(streamRef.current, {
+      mimeType: MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus") ? "video/webm;codecs=vp9,opus" : "video/webm",
+    });
     mr.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
     mr.start();
     recorderRef.current = mr;
     recordStartRef.current = Date.now();
-    setTimeLeft(currentQ.time_limit_seconds);
+    setTimeLeft(Math.min(currentQ.time_limit_seconds, RECORD_CAP_S));
     setPhase("recording");
   }, [currentQ]);
+
+  // Use ref to break circular dep between submitAnswer & startRecording
+  const startRecordingRef = useRef(startRecording);
+  useEffect(() => { startRecordingRef.current = startRecording; }, [startRecording]);
 
   const submitAnswer = useCallback(() => {
     const mr = recorderRef.current;
@@ -159,7 +162,6 @@ function InterviewRoom() {
       const nextIdx = questionIndex + 1;
       window.setTimeout(() => {
         if (nextIdx >= questions.length) {
-          // Closing
           setPhase("closing");
           speak(closingText, async () => {
             if (sessionId) {
@@ -181,18 +183,142 @@ function InterviewRoom() {
     mr.stop();
   }, [currentQ, transcript, questionIndex, questions, sessionId, closingText, navigate, slug, speak]);
 
-  // Cleanup
+  const submitAnswerRef = useRef(submitAnswer);
+  useEffect(() => { submitAnswerRef.current = submitAnswer; }, [submitAnswer]);
+
+  /* ---------------- Recording countdown ---------------- */
+  useEffect(() => {
+    if (phase !== "recording") return;
+    timerRef.current = window.setInterval(() => {
+      setTimeLeft((t) => {
+        if (t <= 1) { submitAnswerRef.current(); return 0; }
+        return t - 1;
+      });
+    }, 1000);
+    return () => { if (timerRef.current) window.clearInterval(timerRef.current); };
+  }, [phase]);
+
+  /* ---------------- Thinking countdown (auto-start after 30s) ---------------- */
+  useEffect(() => {
+    if (phase !== "ready") return;
+    setThinkLeft(THINK_LIMIT_S);
+    thinkTimerRef.current = window.setInterval(() => {
+      setThinkLeft((t) => {
+        if (t <= 1) {
+          if (thinkTimerRef.current) { window.clearInterval(thinkTimerRef.current); thinkTimerRef.current = null; }
+          startRecordingRef.current();
+          return 0;
+        }
+        return t - 1;
+      });
+    }, 1000);
+    return () => { if (thinkTimerRef.current) { window.clearInterval(thinkTimerRef.current); thinkTimerRef.current = null; } };
+  }, [phase]);
+
+  /* ---------------- Proctoring: tab-switch / blur / second display ---------------- */
+  const suspendInterview = useCallback(async (reason: string) => {
+    setSuspendReason(reason);
+    setPhase("suspended");
+    try { recorderRef.current?.stop(); } catch { /* noop */ }
+    try { audioRef.current?.pause(); } catch { /* noop */ }
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    if (sessionId) {
+      await supabase.from("interview_sessions").update({
+        completed_at: new Date().toISOString(),
+        status: "suspended",
+        proctoring_flags: [{ reason, at: new Date().toISOString() }] as any,
+      }).eq("id", sessionId);
+    }
+  }, [sessionId]);
+
+  useEffect(() => {
+    const proctoredPhases: Phase[] = ["intro_playing", "ready", "recording", "transitioning", "closing"];
+    const isProctored = () => proctoredPhases.includes(phaseRef.current);
+
+    const handleViolation = (reason: string) => {
+      if (!isProctored()) return;
+      violationsRef.current += 1;
+      if (violationsRef.current === 1) {
+        toast.warning("Proctoring warning", {
+          description: `${reason} Please stay on this tab — one more violation will end the interview.`,
+          duration: 6000,
+        });
+      } else {
+        void suspendInterview(reason);
+      }
+    };
+
+    const onVisibility = () => {
+      if (document.hidden) handleViolation("You navigated away from the interview tab.");
+    };
+    const onBlur = () => handleViolation("The interview window lost focus.");
+    const onScreenChange = () => {
+      // Second monitor connected mid-interview
+      if (isProctored() && window.screen && (window.screen as Screen).availWidth !== window.screen.width) {
+        // benign on most setups — skip
+      }
+    };
+
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("blur", onBlur);
+    window.addEventListener("resize", onScreenChange);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("blur", onBlur);
+      window.removeEventListener("resize", onScreenChange);
+    };
+  }, [suspendInterview]);
+
+  /* ---------------- Begin after identity ---------------- */
+  const beginInterview = useCallback(async () => {
+    if (!uni) return;
+    const { data, error } = await supabase.from("interview_sessions").insert({
+      university_id: uni.id,
+      student_name: identity.name,
+      student_email: identity.email,
+      student_reference: identity.reference,
+      started_at: new Date().toISOString(),
+      status: "in_progress",
+    }).select("id").single();
+    if (error) { toast.error(error.message); return; }
+    setSessionId(data.id);
+    setPhase("intro_playing");
+    void speak(introText, () => {
+      if (currentQ) {
+        void speak(currentQ.question_text, () => setPhase("ready"));
+      } else {
+        setPhase("closing");
+      }
+    });
+  }, [uni, identity, introText, currentQ, speak]);
+
+  /* ---------------- Cleanup ---------------- */
   useEffect(() => () => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
-    if (typeof window !== "undefined") window.speechSynthesis?.cancel();
+    try { audioRef.current?.pause(); } catch { /* noop */ }
+    if (timerRef.current) window.clearInterval(timerRef.current);
+    if (thinkTimerRef.current) window.clearInterval(thinkTimerRef.current);
   }, []);
 
-  /* Renders */
+  /* ---------------- Renders ---------------- */
   if (phase === "loading") {
     return <FullCenter><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></FullCenter>;
   }
   if (phase === "notfound") {
     return <FullCenter><div className="text-center"><p className="label-mono">404</p><h1 className="mt-2 text-2xl font-semibold">Interview not found</h1><p className="mt-2 text-sm text-muted-foreground">This link is invalid or has been removed.</p></div></FullCenter>;
+  }
+  if (phase === "suspended") {
+    return (
+      <FullCenter>
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="surface-card max-w-md p-10 text-center">
+          <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-danger/15 text-danger"><ShieldAlert className="h-6 w-6" /></div>
+          <p className="label-mono mt-6 text-danger">Interview suspended</p>
+          <h1 className="mt-2 text-2xl font-semibold tracking-tight">Session has been ended</h1>
+          <p className="mt-3 text-sm text-muted-foreground">{suspendReason || "A proctoring rule was violated."}</p>
+          <p className="mt-4 text-xs text-muted-foreground">If you believe this is a mistake, please contact {uni?.institution_name ?? "the institution"}'s admissions team.</p>
+        </motion.div>
+      </FullCenter>
+    );
   }
   if (phase === "permission") {
     return (
@@ -224,13 +350,11 @@ function InterviewRoom() {
           <button onClick={beginInterview} disabled={!ready} className="mt-8 w-full rounded-[10px] bg-primary px-5 py-3 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-40">
             Begin interview
           </button>
+          <p className="mt-4 text-center text-[11px] leading-relaxed text-muted-foreground">By starting, you agree that your camera, microphone and tab focus will be monitored throughout the interview.</p>
         </motion.div>
       </FullCenter>
     );
   }
-
-  /* Main interview view */
-  const speaking = phase === "intro_playing" || phase === "transitioning" || phase === "closing";
 
   return (
     <div className="min-h-screen bg-background">
@@ -238,10 +362,12 @@ function InterviewRoom() {
         {/* Avatar */}
         <div className="relative flex flex-col items-center justify-center rounded-[20px] border border-border bg-surface p-10">
           {uni?.logo_url && <img src={uni.logo_url} alt="" className="absolute left-6 top-6 h-9 w-9 object-contain" />}
-          <div className={`relative h-48 w-48 rounded-full bg-gradient-to-br from-primary/30 to-elevated ${speaking ? "animate-pulse-ring" : "animate-breathe"}`}>
-            <div className="absolute inset-2 rounded-full bg-gradient-to-br from-elevated to-background grid place-items-center">
-              <span className="font-display text-5xl font-semibold tracking-tight text-foreground">A</span>
-            </div>
+          <div className={`relative h-48 w-48 rounded-full p-[3px] ${isSpeaking ? "animate-pulse-ring bg-gradient-to-br from-primary to-primary/40" : "animate-breathe bg-gradient-to-br from-elevated to-border"}`}>
+            <img
+              src={alexAvatar}
+              alt="Alex, your AI interviewer"
+              className="h-full w-full rounded-full object-cover"
+            />
           </div>
           <p className="mt-8 label-mono">Interviewer</p>
           <h2 className="mt-2 text-xl font-semibold">Alex</h2>
@@ -256,6 +382,11 @@ function InterviewRoom() {
               <span className="label-mono">{phase === "recording" ? "Recording" : "Standby"}</span>
             </div>
             {phase === "recording" && <Timer s={timeLeft} />}
+            {phase === "ready" && (
+              <span className="font-mono text-xs tabular-nums text-muted-foreground">
+                Auto-starts in {String(thinkLeft).padStart(2, "0")}s
+              </span>
+            )}
           </div>
           <div className="relative mt-4 flex-1 overflow-hidden rounded-[16px] bg-background">
             <video ref={videoRef} autoPlay muted playsInline className="h-full w-full object-cover" />
@@ -269,7 +400,7 @@ function InterviewRoom() {
               {phase === "intro_playing" ? (
                 <motion.div key="intro" initial={{ opacity: 0, filter: "blur(4px)" }} animate={{ opacity: 1, filter: "blur(0px)" }} exit={{ opacity: 0, filter: "blur(4px)" }} transition={{ duration: 0.4 }}>
                   <p className="label-mono">Introduction</p>
-                  <p className="mt-3 text-lg leading-relaxed text-muted-foreground">Alex is introducing the interview. Please listen — buttons will appear when it's your turn.</p>
+                  <p className="mt-3 text-lg leading-relaxed text-muted-foreground">Alex is introducing the interview. Please listen carefully — buttons will appear when it's your turn.</p>
                 </motion.div>
               ) : phase === "closing" ? (
                 <motion.div key="closing" initial={{ opacity: 0, filter: "blur(4px)" }} animate={{ opacity: 1, filter: "blur(0px)" }} transition={{ duration: 0.4 }}>
@@ -286,9 +417,12 @@ function InterviewRoom() {
 
             <div className="mt-8 flex flex-col items-center gap-2">
               {phase === "ready" && (
-                <button onClick={startRecording} className="inline-flex w-full max-w-sm items-center justify-center gap-2 rounded-[10px] bg-primary px-6 py-4 text-sm font-medium text-primary-foreground hover:opacity-90">
-                  <Mic className="h-4 w-4" /> I am ready — start recording
-                </button>
+                <>
+                  <button onClick={startRecording} className="inline-flex w-full max-w-sm items-center justify-center gap-2 rounded-[10px] bg-primary px-6 py-4 text-sm font-medium text-primary-foreground hover:opacity-90">
+                    <Mic className="h-4 w-4" /> I am ready — start recording
+                  </button>
+                  <p className="mt-2 text-xs text-muted-foreground">Recording will start automatically in {thinkLeft}s. You'll then have up to 2 minutes to answer.</p>
+                </>
               )}
               {phase === "recording" && (
                 <>
