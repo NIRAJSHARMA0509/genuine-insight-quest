@@ -424,10 +424,14 @@ function InterviewRoom() {
             <div className="mt-8 flex flex-col items-center gap-2">
               {phase === "ready" && (
                 <>
-                  <button onClick={startRecording} className="inline-flex w-full max-w-sm items-center justify-center gap-2 rounded-[10px] bg-primary px-6 py-4 text-sm font-medium text-primary-foreground hover:opacity-90">
+                  <button onClick={startRecording} disabled={isSpeaking} className="inline-flex w-full max-w-sm items-center justify-center gap-2 rounded-[10px] bg-primary px-6 py-4 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-40">
                     <Mic className="h-4 w-4" /> I am ready — start recording
                   </button>
-                  <p className="mt-2 text-xs text-muted-foreground">Recording will start automatically in {thinkLeft}s. You'll then have up to 2 minutes to answer.</p>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {isSpeaking
+                      ? "Listen to Alex — the 30-second timer starts when the question finishes."
+                      : `Recording auto-starts in ${thinkLeft}s. You'll then have up to 2 minutes to answer.`}
+                  </p>
                 </>
               )}
               {phase === "recording" && (
