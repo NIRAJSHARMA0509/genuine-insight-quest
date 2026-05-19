@@ -382,10 +382,16 @@ function InterviewRoom() {
               <span className="label-mono">{phase === "recording" ? "Recording" : "Standby"}</span>
             </div>
             {phase === "recording" && <Timer s={timeLeft} />}
-            {phase === "ready" && (
-              <span className="font-mono text-xs tabular-nums text-muted-foreground">
-                Auto-starts in {String(thinkLeft).padStart(2, "0")}s
-              </span>
+            {phase === "ready" && !isSpeaking && (
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="flex items-center gap-2 rounded-full bg-warning/15 px-3 py-1.5 ring-1 ring-warning/40"
+              >
+                <span className="h-2 w-2 animate-pulse rounded-full bg-warning" />
+                <span className="text-xs font-medium text-warning">Auto-starts in</span>
+                <span className="font-mono text-base font-bold tabular-nums text-warning">{String(thinkLeft).padStart(2, "0")}s</span>
+              </motion.div>
             )}
           </div>
           <div className="relative mt-4 flex-1 overflow-hidden rounded-[16px] bg-background">
