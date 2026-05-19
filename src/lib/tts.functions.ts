@@ -4,16 +4,21 @@ import { z } from "zod";
 const ALEX_VOICE_ID = "NEbg2XsbXkY8UdAcrYDA";
 const MODEL_ID = "eleven_turbo_v2_5";
 
+type TtsResult =
+  | { ok: true; audioBase64: string; mime: "audio/mpeg"; provider: "elevenlabs" }
+  | { ok: false; fallback: true; reason: string };
+
 export const synthesizeAlexVoice = createServerFn({ method: "POST" })
   .inputValidator(
     z.object({
       text: z.string().min(1).max(5000),
     }).parse,
   )
-  .handler(async ({ data }) => {
+  .handler(async ({ data }): Promise<TtsResult> => {
     const apiKey = process.env.ELEVENLABS_API_KEY;
     if (!apiKey) {
-      throw new Error("ELEVENLABS_API_KEY is not configured");
+      console.warn("ElevenLabs TTS unavailable: missing ELEVENLABS_API_KEY");
+      return { ok: false, fallback: true, reason: "missing_api_key" };
     }
 
     const response = await fetch(
@@ -40,10 +45,11 @@ export const synthesizeAlexVoice = createServerFn({ method: "POST" })
 
     if (!response.ok) {
       const err = await response.text();
-      throw new Error(`ElevenLabs TTS failed (${response.status}): ${err}`);
+      console.error(`ElevenLabs TTS failed (${response.status}): ${err}`);
+      return { ok: false, fallback: true, reason: `elevenlabs_${response.status}` };
     }
 
     const buf = await response.arrayBuffer();
     const audioBase64 = Buffer.from(buf).toString("base64");
-    return { audioBase64, mime: "audio/mpeg" };
+    return { ok: true, audioBase64, mime: "audio/mpeg", provider: "elevenlabs" };
   });

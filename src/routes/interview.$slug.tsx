@@ -95,9 +95,34 @@ function InterviewRoom() {
   const speak = useCallback(async (text: string, onEnd?: () => void) => {
     try {
       setIsSpeaking(true);
-      const { audioBase64 } = await fetchVoice({ data: { text } });
+      const result = await fetchVoice({ data: { text } });
+
+      if (!result.ok) {
+        if (typeof window !== "undefined" && "speechSynthesis" in window) {
+          const utterance = new SpeechSynthesisUtterance(text);
+          utterance.lang = "en-GB";
+          utterance.rate = 0.98;
+          utterance.pitch = 1;
+          utterance.onend = () => {
+            setIsSpeaking(false);
+            onEnd?.();
+          };
+          utterance.onerror = () => {
+            setIsSpeaking(false);
+            onEnd?.();
+          };
+          window.speechSynthesis.cancel();
+          window.speechSynthesis.speak(utterance);
+          return;
+        }
+
+        setIsSpeaking(false);
+        onEnd?.();
+        return;
+      }
+
       if (audioRef.current) { try { audioRef.current.pause(); } catch { /* noop */ } }
-      const audio = new Audio(`data:audio/mpeg;base64,${audioBase64}`);
+      const audio = new Audio(`data:audio/mpeg;base64,${result.audioBase64}`);
       audioRef.current = audio;
       const finish = () => { setIsSpeaking(false); onEnd?.(); };
       audio.onended = finish;
@@ -106,7 +131,6 @@ function InterviewRoom() {
     } catch (e) {
       console.error("TTS failed:", e);
       setIsSpeaking(false);
-      toast.error("Audio playback failed. Continuing without voice.");
       onEnd?.();
     }
   }, [fetchVoice]);
@@ -296,6 +320,7 @@ function InterviewRoom() {
   useEffect(() => () => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
     try { audioRef.current?.pause(); } catch { /* noop */ }
+    try { window.speechSynthesis?.cancel(); } catch { /* noop */ }
     if (timerRef.current) window.clearInterval(timerRef.current);
     if (thinkTimerRef.current) window.clearInterval(thinkTimerRef.current);
   }, []);
