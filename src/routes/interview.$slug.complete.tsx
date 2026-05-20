@@ -42,7 +42,8 @@ function CompletePage() {
         <motion.div initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.3, type: "spring", stiffness: 180 }} className="mx-auto mt-8 grid h-20 w-20 place-items-center rounded-full bg-success/15 text-success glow-ring">
           <Check className="h-10 w-10" strokeWidth={2.5} />
         </motion.div>
-        <h1 className="mt-8 text-4xl font-semibold tracking-[-0.02em]">Your interview is complete</h1>
+        <p className="label-mono mt-8 text-success">Submitted for review</p>
+        <h1 className="mt-2 text-4xl font-semibold tracking-[-0.02em]">Submitted for Review</h1>
         <div className="surface-card mt-8 p-6 text-left text-sm leading-relaxed text-muted-foreground">
           {closing || DEFAULT_CLOSING}
         </div>
