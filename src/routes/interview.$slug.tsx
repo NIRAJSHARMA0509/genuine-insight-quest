@@ -83,6 +83,9 @@ function InterviewRoom() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const violationsRef = useRef(0);
   const phaseRef = useRef<Phase>("loading");
+  // live speech-to-text capture
+  const recognitionRef = useRef<any>(null); // eslint-disable-line @typescript-eslint/no-explicit-any
+  const liveTranscriptRef = useRef<string>("");
   useEffect(() => { phaseRef.current = phase; }, [phase]);
 
   /* ---------------- Load configuration ---------------- */
