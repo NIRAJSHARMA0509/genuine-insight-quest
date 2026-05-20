@@ -400,7 +400,7 @@ function InterviewRoom() {
   }, [test, suspendInterview]);
 
   /* ---------------- Begin ---------------- */
-  const [resolvedClosing, setResolvedClosing] = useState<string>("");
+
 
   const beginInterview = useCallback(async () => {
     if (!test || !org) return;
