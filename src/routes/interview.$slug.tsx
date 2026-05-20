@@ -309,20 +309,21 @@ function InterviewRoom() {
     setTranscript(nextTranscript);
     setPhase("transitioning");
 
+    // qIdx semantics: "next list index to fetch" — question just answered was list[qIdx-1] (if fixed/clarifying).
     const lvl = levels[levelIdx];
     let nextLevelIdx = levelIdx;
-    let nextQIdx = qIdx + 1; // tentative
+    let nextQIdx = qIdx;
     let nextR = reasoningCount;
     let nextFollowUps = followUpsAsked;
     let nextQ: Awaited<ReturnType<typeof computeNextQuestion>> = null;
 
     if (lvl) {
       nextQ = await computeNextQuestion(levelIdx, nextQIdx, reasoningCount, nextTranscript, followUpsAsked, entry.answer_text);
-      if (nextQ && !nextQ.advanceQIdx) {
-        // follow-up or reasoning — keep qIdx where it was (parent), but for fixed/clarifying-new-question advance.
-        nextQIdx = qIdx;
+      if (nextQ) {
+        nextFollowUps = nextQ.followUpsNext;
+        if (nextQ.advanceQIdx) nextQIdx = qIdx + 1; // consumed list[qIdx], move pointer
+        // if !advanceQIdx (follow-up or reasoning) keep qIdx as-is
       }
-      if (nextQ) nextFollowUps = nextQ.followUpsNext;
     }
     while (!nextQ && nextLevelIdx + 1 < levels.length) {
       nextLevelIdx += 1;
