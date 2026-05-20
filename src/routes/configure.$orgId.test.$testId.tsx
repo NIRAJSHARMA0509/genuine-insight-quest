@@ -305,7 +305,8 @@ function QuestionCard({ q, idx, showFollowUps, onChange, onSave, onDelete }: {
 function RubricEditor({ rubrics, onChange }: { rubrics: QuestionRubric[]; onChange: (r: QuestionRubric[]) => void }) {
   return (
     <div>
-      <p className="label-mono">Rubric tiers (1–10)</p>
+      <p className="label-mono">Scoring reference (score 1–10)</p>
+      <p className="text-xs text-muted-foreground mt-1">Add example responses and the score each would earn. Stored as reference for the reporting LLM — not processed here.</p>
       <div className="mt-2 space-y-2">
         {rubrics.map((r, i) => (
           <div key={i} className="flex items-center gap-2">
