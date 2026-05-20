@@ -509,13 +509,13 @@ function InterviewRoom() {
     setResolvedClosing(closingToSpeak);
 
     // Compute first question
-    const firstQ = await computeNextQuestion(0, 0, 0, []);
+    const firstQ = await computeNextQuestion(0, 0, 0, [], 0, "");
     if (!firstQ) {
       toast.error("This test has no questions configured yet.");
       return;
     }
-    setLevelIdx(0); setQIdx(0); setReasoningCount(firstQ.rCountNext);
-    setCurrentQuestion({ text: firstQ.text, think_s: firstQ.think_s, answer_s: firstQ.answer_s });
+    setLevelIdx(0); setQIdx(firstQ.advanceQIdx ? 1 : 0); setReasoningCount(firstQ.rCountNext); setFollowUpsAsked(firstQ.followUpsNext);
+    setCurrentQuestion({ text: firstQ.text, think_s: firstQ.think_s, answer_s: firstQ.answer_s, question_id: firstQ.question_id, is_follow_up: firstQ.is_follow_up });
     setPhase("intro_playing");
     void speak(introToSpeak, () => {
       void speak(firstQ.text, () => setPhase("ready"));
