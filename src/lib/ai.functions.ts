@@ -156,3 +156,39 @@ Return JSON only.`,
       return { score: 0, feedback: raw.slice(0, 400), improvement_tip: "" };
     }
   });
+
+/* ---------- Expand intro / closing from a prompt ---------- */
+
+export const expandMessage = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      kind: z.enum(["intro", "closing"]),
+      prompt: z.string().min(1).max(2000),
+      organisation_name: z.string().max(200).optional(),
+      test_name: z.string().max(200).optional(),
+    }).parse,
+  )
+  .handler(async ({ data }) => {
+    const role = data.kind === "intro"
+      ? "warm opening monologue an AI interviewer named Alex speaks to the candidate before the first question"
+      : "warm closing monologue Alex speaks after the final answer";
+    const messages: GatewayMessage[] = [
+      {
+        role: "system",
+        content:
+`You are Alex, an AI interviewer. Generate a ${role}. Write in first person, plain spoken English, 120–220 words, no headings, no bullet points, no stage directions. Output ONLY the spoken text.`,
+      },
+      {
+        role: "user",
+        content:
+`Organisation: ${data.organisation_name ?? "(unspecified)"}
+Test: ${data.test_name ?? "(unspecified)"}
+
+Brief / instructions from the organisation (use as guidance, not verbatim):
+${data.prompt}`,
+      },
+    ];
+    const text = (await callGateway(messages)).trim();
+    return { text };
+  });
+
