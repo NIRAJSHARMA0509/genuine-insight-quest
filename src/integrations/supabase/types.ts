@@ -334,9 +334,11 @@ export type Database = {
         Row: {
           attempts_context_note: string | null
           closing_message: string | null
+          closing_mode: string
           created_at: string
           id: string
           intro_message: string | null
+          intro_mode: string
           max_attempts: number
           name: string
           organisation_id: string
@@ -349,9 +351,11 @@ export type Database = {
         Insert: {
           attempts_context_note?: string | null
           closing_message?: string | null
+          closing_mode?: string
           created_at?: string
           id?: string
           intro_message?: string | null
+          intro_mode?: string
           max_attempts?: number
           name: string
           organisation_id: string
@@ -364,9 +368,11 @@ export type Database = {
         Update: {
           attempts_context_note?: string | null
           closing_message?: string | null
+          closing_mode?: string
           created_at?: string
           id?: string
           intro_message?: string | null
+          intro_mode?: string
           max_attempts?: number
           name?: string
           organisation_id?: string
