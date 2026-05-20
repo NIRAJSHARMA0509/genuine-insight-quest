@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Organisation, Test, TestLevel, Question, QuestionRubric, Objective, ObjectiveCriterion } from "@/lib/types";
 import { DEFAULT_CLOSING, DEFAULT_INTRO } from "@/lib/types";
 import { synthesizeAlexVoice } from "@/lib/tts.functions";
-import { generateReasoningQuestion, generatePrepFeedback } from "@/lib/ai.functions";
+import { generateReasoningQuestion, generatePrepFeedback, expandMessage } from "@/lib/ai.functions";
 import alexAvatar from "@/assets/alex-avatar.jpg";
 
 export const Route = createFileRoute("/interview/$slug")({
@@ -46,6 +46,7 @@ function InterviewRoom() {
   const fetchVoice = useServerFn(synthesizeAlexVoice);
   const reasoningFn = useServerFn(generateReasoningQuestion);
   const prepFn = useServerFn(generatePrepFeedback);
+  const expandFn = useServerFn(expandMessage);
 
   const [phase, setPhase] = useState<Phase>("loading");
   const [org, setOrg] = useState<Organisation | null>(null);
@@ -68,6 +69,7 @@ function InterviewRoom() {
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
   const [prepFeedback, setPrepFeedback] = useState<PrepFeedback | null>(null);
   const [suspendReason, setSuspendReason] = useState<string>("");
+  const [resolvedClosing, setResolvedClosing] = useState<string>("");
 
   const streamRef = useRef<MediaStream | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -176,8 +178,7 @@ function InterviewRoom() {
   });
 
   /* ---------------- Question advancement ---------------- */
-  const totalLevels = levels.length;
-  const currentLevel = levels[levelIdx];
+  // (totalLevels / currentLevel deliberately not surfaced — students see one continuous interview)
 
   // Pick or generate the next question. Returns null if we should advance level.
   const computeNextQuestion = useCallback(async (
@@ -194,9 +195,10 @@ function InterviewRoom() {
       if (!q) return null;
       return { text: q.question_text, think_s: q.think_time_seconds ?? 30, answer_s: Math.min(q.answer_time_seconds ?? 120, RECORD_CAP_S), rCountNext: rCount };
     }
-    // reasoning
-    if (rCount >= (lvl.ai_question_budget ?? 5)) return null;
+    // reasoning — ensure budget covers at least every objective once
     const objs = objectivesByLevel[lvl.id] ?? [];
+    const budget = Math.max(lvl.ai_question_budget ?? 5, objs.length);
+    if (rCount >= budget) return null;
     if (objs.length === 0) return null;
     try {
       const result = await reasoningFn({
@@ -212,8 +214,9 @@ function InterviewRoom() {
       });
       return { text: result.question_text || "Tell me more about your motivation.", think_s: 30, answer_s: 120, rCountNext: rCount + 1 };
     } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
       console.error("reasoning gen failed", e);
-      toast.error("AI question generation failed; moving on.");
+      toast.error("AI question failed", { description: msg.slice(0, 200) });
       return null;
     }
   }, [levels, questionsByLevel, objectivesByLevel, reasoningFn]);
@@ -263,7 +266,7 @@ function InterviewRoom() {
     if (!nextQ) {
       // Done — closing
       setPhase("closing");
-      speak(closingText, async () => {
+      speak(resolvedClosing || closingText, async () => {
         if (sessionId) {
           await supabase.from("interview_sessions").update({
             completed_at: new Date().toISOString(),
@@ -281,7 +284,7 @@ function InterviewRoom() {
     setReasoningCount(nextQ.rCountNext);
     setCurrentQuestion({ text: nextQ.text, think_s: nextQ.think_s, answer_s: nextQ.answer_s });
     speak(nextQ.text, () => setPhase("ready"));
-  }, [transcript, levels, levelIdx, qIdx, reasoningCount, computeNextQuestion, speak, closingText, sessionId, navigate, slug]);
+  }, [transcript, levels, levelIdx, qIdx, reasoningCount, computeNextQuestion, speak, closingText, resolvedClosing, sessionId, navigate, slug]);
 
   const submitAnswer = useCallback(() => {
     const mr = recorderRef.current;
@@ -397,6 +400,8 @@ function InterviewRoom() {
   }, [test, suspendInterview]);
 
   /* ---------------- Begin ---------------- */
+
+
   const beginInterview = useCallback(async () => {
     if (!test || !org) return;
     const { data, error } = await supabase.from("interview_sessions").insert({
@@ -411,6 +416,23 @@ function InterviewRoom() {
     if (error) { toast.error(error.message); return; }
     setSessionId(data.id);
 
+    // Resolve intro / closing — expand via AI if mode is 'prompt'
+    let introToSpeak = introText;
+    let closingToSpeak = closingText;
+    try {
+      if (test.intro_mode === "prompt" && (test.intro_message ?? "").trim()) {
+        const r = await expandFn({ data: { kind: "intro", prompt: test.intro_message!, organisation_name: org.name, test_name: test.name } });
+        if (r.text) introToSpeak = r.text;
+      }
+      if (test.closing_mode === "prompt" && (test.closing_message ?? "").trim()) {
+        const r = await expandFn({ data: { kind: "closing", prompt: test.closing_message!, organisation_name: org.name, test_name: test.name } });
+        if (r.text) closingToSpeak = r.text;
+      }
+    } catch (e) {
+      console.error("expandMessage failed", e);
+    }
+    setResolvedClosing(closingToSpeak);
+
     // Compute first question
     const firstQ = await computeNextQuestion(0, 0, 0, []);
     if (!firstQ) {
@@ -420,10 +442,10 @@ function InterviewRoom() {
     setLevelIdx(0); setQIdx(0); setReasoningCount(firstQ.rCountNext);
     setCurrentQuestion({ text: firstQ.text, think_s: firstQ.think_s, answer_s: firstQ.answer_s });
     setPhase("intro_playing");
-    void speak(introText, () => {
+    void speak(introToSpeak, () => {
       void speak(firstQ.text, () => setPhase("ready"));
     });
-  }, [test, org, identity, introText, computeNextQuestion, speak]);
+  }, [test, org, identity, introText, closingText, computeNextQuestion, speak, expandFn]);
 
   /* ---------------- Cleanup ---------------- */
   useEffect(() => () => {
@@ -490,7 +512,7 @@ function InterviewRoom() {
     );
   }
 
-  const levelLabel = currentLevel ? `${currentLevel.name} · ${currentLevel.mode}` : "";
+  // (level label intentionally not shown to the candidate)
 
   return (
     <div className="min-h-screen bg-background">
@@ -503,7 +525,7 @@ function InterviewRoom() {
           <p className="mt-8 label-mono">Interviewer</p>
           <h2 className="mt-2 text-xl font-semibold">Alex</h2>
           <p className="mt-1 text-sm text-muted-foreground">{org?.name}</p>
-          {totalLevels > 1 && <p className="mt-4 label-mono text-primary">Level {levelIdx + 1}/{totalLevels} · {levelLabel}</p>}
+          {/* level/mode intentionally hidden from candidate */}
         </div>
 
         <div className="relative flex flex-col rounded-[20px] border border-border bg-surface p-6">
@@ -556,7 +578,7 @@ function InterviewRoom() {
                 </motion.div>
               ) : currentQuestion ? (
                 <motion.div key={`q-${levelIdx}-${qIdx}-${reasoningCount}`} initial={{ opacity: 0, filter: "blur(4px)", y: 8 }} animate={{ opacity: 1, filter: "blur(0px)", y: 0 }} exit={{ opacity: 0, filter: "blur(4px)" }} transition={{ duration: 0.4 }}>
-                  <p className="label-mono">{currentLevel?.mode === "reasoning" ? `Reasoning question ${reasoningCount}` : `Question ${qIdx + 1}`}</p>
+                  <p className="label-mono">Question</p>
                   <h2 className="mt-3 text-2xl font-semibold leading-snug tracking-tight md:text-3xl">{currentQuestion.text}</h2>
                 </motion.div>
               ) : null}

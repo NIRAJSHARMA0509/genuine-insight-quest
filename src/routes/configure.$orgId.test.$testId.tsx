@@ -40,6 +40,8 @@ function TestBuilder() {
       attempts_context_note: test.attempts_context_note,
       intro_message: test.intro_message,
       closing_message: test.closing_message,
+      intro_mode: test.intro_mode,
+      closing_mode: test.closing_mode,
       proctoring_enabled: test.proctoring_enabled,
     }).eq("id", test.id);
     if (error) { toast.error(error.message); return; }
@@ -94,14 +96,28 @@ function TestBuilder() {
             <span className="label-mono">Note about previous attempts (shown to candidate)</span>
             <textarea rows={2} className={`${inputClass} mt-2`} placeholder="e.g. We retain the context of your earlier attempts — your report will identify inconsistencies across attempts and follow-up questions may reference earlier answers." value={test.attempts_context_note ?? ""} onChange={(e) => setTest({ ...test, attempts_context_note: e.target.value })} />
           </label>
-          <label className="block">
-            <span className="label-mono">Custom intro (optional)</span>
-            <textarea rows={3} className={`${inputClass} mt-2`} placeholder={DEFAULT_INTRO.slice(0, 120) + "…"} value={test.intro_message ?? ""} onChange={(e) => setTest({ ...test, intro_message: e.target.value })} />
-          </label>
-          <label className="block">
-            <span className="label-mono">Custom closing (optional)</span>
-            <textarea rows={3} className={`${inputClass} mt-2`} placeholder={DEFAULT_CLOSING.slice(0, 120) + "…"} value={test.closing_message ?? ""} onChange={(e) => setTest({ ...test, closing_message: e.target.value })} />
-          </label>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="label-mono">Intro message</span>
+              <select className="rounded-[8px] border border-border bg-elevated px-2 py-1 text-xs" value={test.intro_mode} onChange={(e) => setTest({ ...test, intro_mode: e.target.value as "literal" | "prompt" })}>
+                <option value="literal">Use as-is</option>
+                <option value="prompt">Use as prompt for AI</option>
+              </select>
+            </div>
+            <textarea rows={3} className={inputClass} placeholder={test.intro_mode === "prompt" ? "e.g. Welcome the candidate warmly, mention the MSc Data Science programme, and remind them that proctoring is active." : DEFAULT_INTRO.slice(0, 120) + "…"} value={test.intro_message ?? ""} onChange={(e) => setTest({ ...test, intro_message: e.target.value })} />
+            <p className="text-xs text-muted-foreground">{test.intro_mode === "prompt" ? "AI will generate the spoken intro from this brief at interview start." : "Text above is spoken verbatim by Alex."}</p>
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="label-mono">Closing message</span>
+              <select className="rounded-[8px] border border-border bg-elevated px-2 py-1 text-xs" value={test.closing_mode} onChange={(e) => setTest({ ...test, closing_mode: e.target.value as "literal" | "prompt" })}>
+                <option value="literal">Use as-is</option>
+                <option value="prompt">Use as prompt for AI</option>
+              </select>
+            </div>
+            <textarea rows={3} className={inputClass} placeholder={test.closing_mode === "prompt" ? "e.g. Thank the candidate, say the admissions team will be in touch within 7 days, wish them well." : DEFAULT_CLOSING.slice(0, 120) + "…"} value={test.closing_message ?? ""} onChange={(e) => setTest({ ...test, closing_message: e.target.value })} />
+            <p className="text-xs text-muted-foreground">{test.closing_mode === "prompt" ? "AI will generate the spoken closing from this brief at interview start." : "Text above is spoken verbatim by Alex."}</p>
+          </div>
           <label className="flex items-center justify-between rounded-[10px] border border-border bg-elevated px-4 py-3">
             <div>
               <p className="text-sm font-medium">Proctoring</p>
