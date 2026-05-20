@@ -441,6 +441,7 @@ function InterviewRoom() {
     setSuspendReason(reason);
     setPhase("suspended");
     try { recorderRef.current?.stop(); } catch { /* noop */ }
+    try { recognitionRef.current?.stop(); } catch { /* noop */ }
     try { audioRef.current?.pause(); } catch { /* noop */ }
     streamRef.current?.getTracks().forEach((t) => t.stop());
     if (sessionId) {
