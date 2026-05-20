@@ -16,10 +16,13 @@ export type Database = {
     Tables: {
       interview_sessions: {
         Row: {
+          attempt_number: number
           completed_at: string | null
           created_at: string
           full_transcript: Json | null
           id: string
+          organisation_id: string | null
+          previous_attempts_summary: Json | null
           proctoring_flags: Json | null
           score_report: Json | null
           started_at: string | null
@@ -27,13 +30,16 @@ export type Database = {
           student_email: string | null
           student_name: string | null
           student_reference: string | null
-          university_id: string | null
+          test_id: string | null
         }
         Insert: {
+          attempt_number?: number
           completed_at?: string | null
           created_at?: string
           full_transcript?: Json | null
           id?: string
+          organisation_id?: string | null
+          previous_attempts_summary?: Json | null
           proctoring_flags?: Json | null
           score_report?: Json | null
           started_at?: string | null
@@ -41,13 +47,16 @@ export type Database = {
           student_email?: string | null
           student_name?: string | null
           student_reference?: string | null
-          university_id?: string | null
+          test_id?: string | null
         }
         Update: {
+          attempt_number?: number
           completed_at?: string | null
           created_at?: string
           full_transcript?: Json | null
           id?: string
+          organisation_id?: string | null
+          previous_attempts_summary?: Json | null
           proctoring_flags?: Json | null
           score_report?: Json | null
           started_at?: string | null
@@ -55,62 +64,327 @@ export type Database = {
           student_email?: string | null
           student_name?: string | null
           student_reference?: string | null
-          university_id?: string | null
+          test_id?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "interview_sessions_university_id_fkey"
-            columns: ["university_id"]
+            foreignKeyName: "interview_sessions_organisation_id_fkey"
+            columns: ["organisation_id"]
             isOneToOne: false
-            referencedRelation: "universities"
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interview_sessions_test_id_fkey"
+            columns: ["test_id"]
+            isOneToOne: false
+            referencedRelation: "tests"
             referencedColumns: ["id"]
           },
         ]
       }
-      universities: {
+      objective_criteria: {
         Row: {
-          configuration: Json
+          created_at: string
+          criterion: string
+          id: string
+          objective_id: string
+          order_index: number
+          score: number
+        }
+        Insert: {
+          created_at?: string
+          criterion: string
+          id?: string
+          objective_id: string
+          order_index?: number
+          score: number
+        }
+        Update: {
+          created_at?: string
+          criterion?: string
+          id?: string
+          objective_id?: string
+          order_index?: number
+          score?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "objective_criteria_objective_id_fkey"
+            columns: ["objective_id"]
+            isOneToOne: false
+            referencedRelation: "objectives"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      objectives: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          level_id: string
+          order_index: number
+          title: string
+          updated_at: string
+          weight: number
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          level_id: string
+          order_index?: number
+          title: string
+          updated_at?: string
+          weight?: number
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          level_id?: string
+          order_index?: number
+          title?: string
+          updated_at?: string
+          weight?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "objectives_level_id_fkey"
+            columns: ["level_id"]
+            isOneToOne: false
+            referencedRelation: "test_levels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organisations: {
+        Row: {
           contact_email: string | null
           created_at: string
+          custom_urls: Json
+          description: string | null
           id: string
-          institution_name: string
           intake_year: string | null
-          interview_mode: string
           logo_url: string | null
+          name: string
+          nature_of_service: string | null
           programme_name: string | null
+          type: string
+          updated_at: string
+          website_url: string | null
+        }
+        Insert: {
+          contact_email?: string | null
+          created_at?: string
+          custom_urls?: Json
+          description?: string | null
+          id?: string
+          intake_year?: string | null
+          logo_url?: string | null
+          name: string
+          nature_of_service?: string | null
+          programme_name?: string | null
+          type: string
+          updated_at?: string
+          website_url?: string | null
+        }
+        Update: {
+          contact_email?: string | null
+          created_at?: string
+          custom_urls?: Json
+          description?: string | null
+          id?: string
+          intake_year?: string | null
+          logo_url?: string | null
+          name?: string
+          nature_of_service?: string | null
+          programme_name?: string | null
+          type?: string
+          updated_at?: string
+          website_url?: string | null
+        }
+        Relationships: []
+      }
+      question_rubrics: {
+        Row: {
+          created_at: string
+          example_response: string
+          id: string
+          order_index: number
+          question_id: string
+          score: number
+        }
+        Insert: {
+          created_at?: string
+          example_response: string
+          id?: string
+          order_index?: number
+          question_id: string
+          score: number
+        }
+        Update: {
+          created_at?: string
+          example_response?: string
+          id?: string
+          order_index?: number
+          question_id?: string
+          score?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "question_rubrics_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      questions: {
+        Row: {
+          ai_generated: boolean
+          answer_time_seconds: number
+          created_at: string
+          id: string
+          level_id: string
+          max_follow_ups: number
+          order_index: number
+          question_text: string
+          think_time_seconds: number
+          updated_at: string
+        }
+        Insert: {
+          ai_generated?: boolean
+          answer_time_seconds?: number
+          created_at?: string
+          id?: string
+          level_id: string
+          max_follow_ups?: number
+          order_index?: number
+          question_text: string
+          think_time_seconds?: number
+          updated_at?: string
+        }
+        Update: {
+          ai_generated?: boolean
+          answer_time_seconds?: number
+          created_at?: string
+          id?: string
+          level_id?: string
+          max_follow_ups?: number
+          order_index?: number
+          question_text?: string
+          think_time_seconds?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "questions_level_id_fkey"
+            columns: ["level_id"]
+            isOneToOne: false
+            referencedRelation: "test_levels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      test_levels: {
+        Row: {
+          ai_question_budget: number
+          created_at: string
+          id: string
+          mode: string
+          name: string
+          order_index: number
+          test_id: string
+          updated_at: string
+        }
+        Insert: {
+          ai_question_budget?: number
+          created_at?: string
+          id?: string
+          mode: string
+          name: string
+          order_index?: number
+          test_id: string
+          updated_at?: string
+        }
+        Update: {
+          ai_question_budget?: number
+          created_at?: string
+          id?: string
+          mode?: string
+          name?: string
+          order_index?: number
+          test_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "test_levels_test_id_fkey"
+            columns: ["test_id"]
+            isOneToOne: false
+            referencedRelation: "tests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tests: {
+        Row: {
+          attempts_context_note: string | null
+          closing_message: string | null
+          created_at: string
+          id: string
+          intro_message: string | null
+          max_attempts: number
+          name: string
+          organisation_id: string
+          proctoring_enabled: boolean
+          purpose: string
           slug: string
           status: string
           updated_at: string
         }
         Insert: {
-          configuration?: Json
-          contact_email?: string | null
+          attempts_context_note?: string | null
+          closing_message?: string | null
           created_at?: string
           id?: string
-          institution_name: string
-          intake_year?: string | null
-          interview_mode: string
-          logo_url?: string | null
-          programme_name?: string | null
+          intro_message?: string | null
+          max_attempts?: number
+          name: string
+          organisation_id: string
+          proctoring_enabled?: boolean
+          purpose?: string
           slug: string
           status?: string
           updated_at?: string
         }
         Update: {
-          configuration?: Json
-          contact_email?: string | null
+          attempts_context_note?: string | null
+          closing_message?: string | null
           created_at?: string
           id?: string
-          institution_name?: string
-          intake_year?: string | null
-          interview_mode?: string
-          logo_url?: string | null
-          programme_name?: string | null
+          intro_message?: string | null
+          max_attempts?: number
+          name?: string
+          organisation_id?: string
+          proctoring_enabled?: boolean
+          purpose?: string
           slug?: string
           status?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "tests_organisation_id_fkey"
+            columns: ["organisation_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
