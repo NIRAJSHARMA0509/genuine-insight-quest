@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { CustomUrl, Organisation, Test } from "@/lib/types";
 import { slugify } from "@/lib/types";
 import { toast } from "sonner";
-import { CustomUrlsEditor } from "./configure";
+import { CustomUrlsEditor } from "./configure.index";
 
 export const Route = createFileRoute("/configure/$orgId")({
   head: () => ({ meta: [{ title: "Organisation — SGT" }] }),

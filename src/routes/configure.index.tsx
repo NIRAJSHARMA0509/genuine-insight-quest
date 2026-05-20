@@ -8,7 +8,7 @@ import type { CustomUrl, Organisation, OrganisationType } from "@/lib/types";
 import { slugify } from "@/lib/types";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/configure")({
+export const Route = createFileRoute("/configure/")({
   head: () => ({
     meta: [{ title: "Configure — SGT" }],
   }),
