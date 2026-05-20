@@ -284,7 +284,7 @@ function InterviewRoom() {
     setReasoningCount(nextQ.rCountNext);
     setCurrentQuestion({ text: nextQ.text, think_s: nextQ.think_s, answer_s: nextQ.answer_s });
     speak(nextQ.text, () => setPhase("ready"));
-  }, [transcript, levels, levelIdx, qIdx, reasoningCount, computeNextQuestion, speak, closingText, sessionId, navigate, slug]);
+  }, [transcript, levels, levelIdx, qIdx, reasoningCount, computeNextQuestion, speak, closingText, resolvedClosing, sessionId, navigate, slug]);
 
   const submitAnswer = useCallback(() => {
     const mr = recorderRef.current;
