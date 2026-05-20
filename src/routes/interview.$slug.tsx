@@ -46,6 +46,7 @@ function InterviewRoom() {
   const fetchVoice = useServerFn(synthesizeAlexVoice);
   const reasoningFn = useServerFn(generateReasoningQuestion);
   const prepFn = useServerFn(generatePrepFeedback);
+  const expandFn = useServerFn(expandMessage);
 
   const [phase, setPhase] = useState<Phase>("loading");
   const [org, setOrg] = useState<Organisation | null>(null);
