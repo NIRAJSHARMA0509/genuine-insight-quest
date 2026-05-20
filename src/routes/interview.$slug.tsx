@@ -61,7 +61,8 @@ function InterviewRoom() {
 
   const [levelIdx, setLevelIdx] = useState(0);
   const [qIdx, setQIdx] = useState(0); // question within current level
-  const [currentQuestion, setCurrentQuestion] = useState<{ text: string; think_s: number; answer_s: number } | null>(null);
+  const [currentQuestion, setCurrentQuestion] = useState<{ text: string; think_s: number; answer_s: number; question_id: string | null; is_follow_up: boolean } | null>(null);
+  const [followUpsAsked, setFollowUpsAsked] = useState(0); // for current clarifying parent
   const [reasoningCount, setReasoningCount] = useState(0); // AI questions asked in current reasoning level
 
   const [timeLeft, setTimeLeft] = useState(0);
