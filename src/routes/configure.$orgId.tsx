@@ -19,10 +19,11 @@ const inputClass =
 
 function OrgWorkspace() {
   const { orgId } = Route.useParams();
+  const search = Route.useSearch();
   const navigate = useNavigate();
   const [org, setOrg] = useState<Organisation | null>(null);
   const [tests, setTests] = useState<Test[] | null>(null);
-  const [showNewTest, setShowNewTest] = useState(false);
+  const [showNewTest, setShowNewTest] = useState(Boolean(search.newTest));
 
   useEffect(() => {
     void load();
