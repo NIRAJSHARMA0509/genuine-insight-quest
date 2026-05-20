@@ -40,6 +40,8 @@ function TestBuilder() {
       attempts_context_note: test.attempts_context_note,
       intro_message: test.intro_message,
       closing_message: test.closing_message,
+      intro_mode: test.intro_mode,
+      closing_mode: test.closing_mode,
       proctoring_enabled: test.proctoring_enabled,
     }).eq("id", test.id);
     if (error) { toast.error(error.message); return; }
