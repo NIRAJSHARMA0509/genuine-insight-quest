@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as ConfigureRouteImport } from './routes/configure'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as InterviewSlugRouteImport } from './routes/interview.$slug'
+import { Route as ConfigureOrgIdRouteImport } from './routes/configure.$orgId'
 import { Route as InterviewSlugCompleteRouteImport } from './routes/interview.$slug.complete'
 
 const ConfigureRoute = ConfigureRouteImport.update({
@@ -29,6 +30,11 @@ const InterviewSlugRoute = InterviewSlugRouteImport.update({
   path: '/interview/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ConfigureOrgIdRoute = ConfigureOrgIdRouteImport.update({
+  id: '/$orgId',
+  path: '/$orgId',
+  getParentRoute: () => ConfigureRoute,
+} as any)
 const InterviewSlugCompleteRoute = InterviewSlugCompleteRouteImport.update({
   id: '/complete',
   path: '/complete',
@@ -37,20 +43,23 @@ const InterviewSlugCompleteRoute = InterviewSlugCompleteRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/configure': typeof ConfigureRoute
+  '/configure': typeof ConfigureRouteWithChildren
+  '/configure/$orgId': typeof ConfigureOrgIdRoute
   '/interview/$slug': typeof InterviewSlugRouteWithChildren
   '/interview/$slug/complete': typeof InterviewSlugCompleteRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/configure': typeof ConfigureRoute
+  '/configure': typeof ConfigureRouteWithChildren
+  '/configure/$orgId': typeof ConfigureOrgIdRoute
   '/interview/$slug': typeof InterviewSlugRouteWithChildren
   '/interview/$slug/complete': typeof InterviewSlugCompleteRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/configure': typeof ConfigureRoute
+  '/configure': typeof ConfigureRouteWithChildren
+  '/configure/$orgId': typeof ConfigureOrgIdRoute
   '/interview/$slug': typeof InterviewSlugRouteWithChildren
   '/interview/$slug/complete': typeof InterviewSlugCompleteRoute
 }
@@ -59,21 +68,28 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/configure'
+    | '/configure/$orgId'
     | '/interview/$slug'
     | '/interview/$slug/complete'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/configure' | '/interview/$slug' | '/interview/$slug/complete'
+  to:
+    | '/'
+    | '/configure'
+    | '/configure/$orgId'
+    | '/interview/$slug'
+    | '/interview/$slug/complete'
   id:
     | '__root__'
     | '/'
     | '/configure'
+    | '/configure/$orgId'
     | '/interview/$slug'
     | '/interview/$slug/complete'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  ConfigureRoute: typeof ConfigureRoute
+  ConfigureRoute: typeof ConfigureRouteWithChildren
   InterviewSlugRoute: typeof InterviewSlugRouteWithChildren
 }
 
@@ -100,6 +116,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InterviewSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/configure/$orgId': {
+      id: '/configure/$orgId'
+      path: '/$orgId'
+      fullPath: '/configure/$orgId'
+      preLoaderRoute: typeof ConfigureOrgIdRouteImport
+      parentRoute: typeof ConfigureRoute
+    }
     '/interview/$slug/complete': {
       id: '/interview/$slug/complete'
       path: '/complete'
@@ -109,6 +132,18 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface ConfigureRouteChildren {
+  ConfigureOrgIdRoute: typeof ConfigureOrgIdRoute
+}
+
+const ConfigureRouteChildren: ConfigureRouteChildren = {
+  ConfigureOrgIdRoute: ConfigureOrgIdRoute,
+}
+
+const ConfigureRouteWithChildren = ConfigureRoute._addFileChildren(
+  ConfigureRouteChildren,
+)
 
 interface InterviewSlugRouteChildren {
   InterviewSlugCompleteRoute: typeof InterviewSlugCompleteRoute
@@ -124,9 +159,19 @@ const InterviewSlugRouteWithChildren = InterviewSlugRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  ConfigureRoute: ConfigureRoute,
+  ConfigureRoute: ConfigureRouteWithChildren,
   InterviewSlugRoute: InterviewSlugRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
