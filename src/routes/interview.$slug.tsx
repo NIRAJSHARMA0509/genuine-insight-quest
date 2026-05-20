@@ -186,19 +186,55 @@ function InterviewRoom() {
   // (totalLevels / currentLevel deliberately not surfaced — students see one continuous interview)
 
   // Pick or generate the next question. Returns null if we should advance level.
+  // When a follow-up is generated for the same parent clarifying question, qIndex stays the same.
   const computeNextQuestion = useCallback(async (
     lvlIndex: number,
     qIndex: number,
     rCount: number,
     trans: TranscriptEntry[],
-  ): Promise<{ text: string; think_s: number; answer_s: number; rCountNext: number } | null> => {
+    followUps: number,
+    lastAnswerText: string,
+  ): Promise<{ text: string; think_s: number; answer_s: number; question_id: string | null; is_follow_up: boolean; rCountNext: number; followUpsNext: number; advanceQIdx: boolean } | null> => {
     const lvl = levels[lvlIndex];
     if (!lvl) return null;
-    if (lvl.mode === "fixed" || lvl.mode === "clarifying") {
+    if (lvl.mode === "fixed") {
       const list = questionsByLevel[lvl.id] ?? [];
       const q = list[qIndex];
       if (!q) return null;
-      return { text: q.question_text, think_s: q.think_time_seconds ?? 30, answer_s: Math.min(q.answer_time_seconds ?? 120, RECORD_CAP_S), rCountNext: rCount };
+      return { text: q.question_text, think_s: q.think_time_seconds ?? 30, answer_s: Math.min(q.answer_time_seconds ?? 120, RECORD_CAP_S), question_id: q.id, is_follow_up: false, rCountNext: rCount, followUpsNext: 0, advanceQIdx: true };
+    }
+    if (lvl.mode === "clarifying") {
+      const list = questionsByLevel[lvl.id] ?? [];
+      const currentParent = list[qIndex - 1]; // previous question (we already advanced qIndex on caller side for fixed; but for clarifying we may insert follow-up first)
+      // Decide: should we insert a follow-up for the most recent parent before moving to qIndex?
+      // We use the parent index = qIndex - 1 (the question just answered).
+      if (currentParent && followUps < (currentParent.max_follow_ups ?? 0) && lastAnswerText.trim().length > 0) {
+        try {
+          const priorFollowUps = trans
+            .filter((t) => t.parent_question_id === currentParent.id)
+            .map((t) => ({ question: t.question, answer: t.answer_text }));
+          const objs = objectivesByLevel[lvl.id] ?? [];
+          const r = await clarifyFn({
+            data: {
+              parent_question: currentParent.question_text,
+              candidate_answer: lastAnswerText,
+              follow_ups_so_far: priorFollowUps,
+              objectives: objs.map((o) => ({ title: o.title, description: o.description ?? undefined })),
+            },
+          });
+          if (r.question_text?.trim()) {
+            return { text: r.question_text.trim(), think_s: 15, answer_s: 90, question_id: currentParent.id, is_follow_up: true, rCountNext: rCount, followUpsNext: followUps + 1, advanceQIdx: false };
+          }
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          console.error("clarifying follow-up failed", e);
+          toast.error("Follow-up generation failed", { description: msg.slice(0, 200) });
+        }
+      }
+      // No follow-up — pick next fixed clarifying question at qIndex
+      const q = list[qIndex];
+      if (!q) return null;
+      return { text: q.question_text, think_s: q.think_time_seconds ?? 30, answer_s: Math.min(q.answer_time_seconds ?? 120, RECORD_CAP_S), question_id: q.id, is_follow_up: false, rCountNext: rCount, followUpsNext: 0, advanceQIdx: true };
     }
     // reasoning — ensure budget covers at least every objective once
     const objs = objectivesByLevel[lvl.id] ?? [];
@@ -213,18 +249,18 @@ function InterviewRoom() {
             description: o.description ?? undefined,
             criteria: (o.criteria ?? []).map((c) => ({ criterion: c.criterion, score: c.score })),
           })),
-          previous_transcript: trans.map((t) => ({ question: t.question, answer: `(${t.duration_s}s recorded)` })),
+          previous_transcript: trans.map((t) => ({ question: t.question, answer: t.answer_text || `(${t.duration_s}s recorded; no transcript)` })),
           question_number: rCount + 1,
         },
       });
-      return { text: result.question_text || "Tell me more about your motivation.", think_s: 30, answer_s: 120, rCountNext: rCount + 1 };
+      return { text: result.question_text || "Tell me more about your motivation.", think_s: 30, answer_s: 120, question_id: null, is_follow_up: false, rCountNext: rCount + 1, followUpsNext: 0, advanceQIdx: false };
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       console.error("reasoning gen failed", e);
       toast.error("AI question failed", { description: msg.slice(0, 200) });
       return null;
     }
-  }, [levels, questionsByLevel, objectivesByLevel, reasoningFn]);
+  }, [levels, questionsByLevel, objectivesByLevel, reasoningFn, clarifyFn]);
 
   /* ---------------- Recording ---------------- */
   const startRecording = useCallback(() => {
