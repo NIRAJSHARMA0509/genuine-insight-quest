@@ -276,6 +276,29 @@ function InterviewRoom() {
     recordStartRef.current = Date.now();
     setTimeLeft(currentQuestion.answer_s);
     setPhase("recording");
+
+    // Start live speech-to-text (best effort; ignored if unsupported)
+    liveTranscriptRef.current = "";
+    try {
+      const w = window as unknown as { SpeechRecognition?: any; webkitSpeechRecognition?: any }; // eslint-disable-line @typescript-eslint/no-explicit-any
+      const SR = w.SpeechRecognition || w.webkitSpeechRecognition;
+      if (SR) {
+        const rec = new SR();
+        rec.continuous = true;
+        rec.interimResults = true;
+        rec.lang = "en-GB";
+        rec.onresult = (ev: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+          let finalChunk = "";
+          for (let i = ev.resultIndex; i < ev.results.length; i++) {
+            if (ev.results[i].isFinal) finalChunk += ev.results[i][0].transcript + " ";
+          }
+          if (finalChunk) liveTranscriptRef.current += finalChunk;
+        };
+        rec.onerror = () => { /* ignore */ };
+        rec.start();
+        recognitionRef.current = rec;
+      }
+    } catch { /* unsupported — proceed without transcript */ }
   }, [currentQuestion]);
 
   const startRecordingRef = useRef(startRecording);
@@ -286,26 +309,34 @@ function InterviewRoom() {
     setTranscript(nextTranscript);
     setPhase("transitioning");
 
-    // Try next question within current level
     const lvl = levels[levelIdx];
     let nextLevelIdx = levelIdx;
-    let nextQIdx = qIdx + 1;
+    let nextQIdx = qIdx + 1; // tentative
     let nextR = reasoningCount;
+    let nextFollowUps = followUpsAsked;
     let nextQ: Awaited<ReturnType<typeof computeNextQuestion>> = null;
 
     if (lvl) {
-      nextQ = await computeNextQuestion(levelIdx, nextQIdx, reasoningCount, nextTranscript);
+      nextQ = await computeNextQuestion(levelIdx, nextQIdx, reasoningCount, nextTranscript, followUpsAsked, entry.answer_text);
+      if (nextQ && !nextQ.advanceQIdx) {
+        // follow-up or reasoning — keep qIdx where it was (parent), but for fixed/clarifying-new-question advance.
+        nextQIdx = qIdx;
+      }
+      if (nextQ) nextFollowUps = nextQ.followUpsNext;
     }
-    // If level exhausted, advance to next level
     while (!nextQ && nextLevelIdx + 1 < levels.length) {
       nextLevelIdx += 1;
       nextQIdx = 0;
       nextR = 0;
-      nextQ = await computeNextQuestion(nextLevelIdx, 0, 0, nextTranscript);
+      nextFollowUps = 0;
+      nextQ = await computeNextQuestion(nextLevelIdx, 0, 0, nextTranscript, 0, "");
+      if (nextQ) {
+        nextFollowUps = nextQ.followUpsNext;
+        if (nextQ.advanceQIdx) nextQIdx = 1; else nextQIdx = 0;
+      }
     }
 
     if (!nextQ) {
-      // Done — closing
       setPhase("closing");
       speak(resolvedClosing || closingText, async () => {
         if (sessionId) {
@@ -323,9 +354,10 @@ function InterviewRoom() {
     setLevelIdx(nextLevelIdx);
     setQIdx(nextQIdx);
     setReasoningCount(nextQ.rCountNext);
-    setCurrentQuestion({ text: nextQ.text, think_s: nextQ.think_s, answer_s: nextQ.answer_s });
+    setFollowUpsAsked(nextFollowUps);
+    setCurrentQuestion({ text: nextQ.text, think_s: nextQ.think_s, answer_s: nextQ.answer_s, question_id: nextQ.question_id, is_follow_up: nextQ.is_follow_up });
     speak(nextQ.text, () => setPhase("ready"));
-  }, [transcript, levels, levelIdx, qIdx, reasoningCount, computeNextQuestion, speak, closingText, resolvedClosing, sessionId, navigate, slug]);
+  }, [transcript, levels, levelIdx, qIdx, reasoningCount, followUpsAsked, computeNextQuestion, speak, closingText, resolvedClosing, sessionId, navigate, slug]);
 
   const submitAnswer = useCallback(() => {
     const mr = recorderRef.current;
@@ -333,10 +365,14 @@ function InterviewRoom() {
     const duration_s = Math.round((Date.now() - recordStartRef.current) / 1000);
     const qText = currentQuestion?.text ?? "";
     const lvlId = levels[levelIdx]?.id ?? "";
+    const parentId = currentQuestion?.question_id ?? null;
+    // Stop STT and capture text
+    try { recognitionRef.current?.stop(); } catch { /* noop */ }
+    recognitionRef.current = null;
+    const answerText = liveTranscriptRef.current.trim();
     mr.onstop = async () => {
-      const entry: TranscriptEntry = { question: qText, level_id: lvlId, duration_s };
+      const entry: TranscriptEntry = { question: qText, level_id: lvlId, duration_s, answer_text: answerText, parent_question_id: parentId };
 
-      // Prep mode: get feedback before advancing
       if (test?.purpose === "preparation") {
         setPhase("feedback");
         try {
@@ -346,7 +382,7 @@ function InterviewRoom() {
           const fb = await prepFn({
             data: {
               question_text: qText,
-              answer_text: `(Candidate spoke for ${duration_s}s; full audio not transcribed in this mode.)`,
+              answer_text: answerText || `(Candidate spoke for ${duration_s}s; no transcript captured.)`,
               rubrics: (matchedQ?.rubrics ?? []).map((r) => ({ example_response: r.example_response, score: r.score })),
               objectives: lvl ? (objectivesByLevel[lvl.id] ?? []).map((o) => ({ title: o.title, description: o.description })) : [],
             },
@@ -356,8 +392,6 @@ function InterviewRoom() {
           console.error("prep feedback failed", e);
           setPrepFeedback({ score: 0, feedback: "Couldn't generate feedback. Let's continue.", improvement_tip: "" });
         }
-        // wait for user to click Continue (handled in render)
-        // stash entry on a ref-like state pattern: store via closure into advance
         pendingEntryRef.current = entry;
         return;
       }
