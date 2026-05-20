@@ -45,6 +45,7 @@ function InterviewRoom() {
   const navigate = useNavigate();
   const fetchVoice = useServerFn(synthesizeAlexVoice);
   const reasoningFn = useServerFn(generateReasoningQuestion);
+  const clarifyFn = useServerFn(generateClarifyingFollowUp);
   const prepFn = useServerFn(generatePrepFeedback);
   const expandFn = useServerFn(expandMessage);
 
