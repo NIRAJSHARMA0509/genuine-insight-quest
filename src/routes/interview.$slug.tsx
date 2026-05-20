@@ -213,8 +213,9 @@ function InterviewRoom() {
       });
       return { text: result.question_text || "Tell me more about your motivation.", think_s: 30, answer_s: 120, rCountNext: rCount + 1 };
     } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
       console.error("reasoning gen failed", e);
-      toast.error("AI question generation failed; moving on.");
+      toast.error("AI question failed", { description: msg.slice(0, 200) });
       return null;
     }
   }, [levels, questionsByLevel, objectivesByLevel, reasoningFn]);
