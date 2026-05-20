@@ -266,7 +266,7 @@ function InterviewRoom() {
     if (!nextQ) {
       // Done — closing
       setPhase("closing");
-      speak(closingText, async () => {
+      speak(resolvedClosing || closingText, async () => {
         if (sessionId) {
           await supabase.from("interview_sessions").update({
             completed_at: new Date().toISOString(),
