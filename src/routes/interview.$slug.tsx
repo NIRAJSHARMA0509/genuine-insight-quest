@@ -35,7 +35,7 @@ type Phase =
   | "suspended";
 
 interface Identity { name: string; email: string; reference: string; }
-interface TranscriptEntry { question: string; level_id: string; duration_s: number; }
+interface TranscriptEntry { question: string; level_id: string; duration_s: number; answer_text: string; parent_question_id?: string | null; }
 interface PrepFeedback { score: number; feedback: string; improvement_tip: string; }
 
 const RECORD_CAP_S = 600;
