@@ -195,9 +195,10 @@ function InterviewRoom() {
       if (!q) return null;
       return { text: q.question_text, think_s: q.think_time_seconds ?? 30, answer_s: Math.min(q.answer_time_seconds ?? 120, RECORD_CAP_S), rCountNext: rCount };
     }
-    // reasoning
-    if (rCount >= (lvl.ai_question_budget ?? 5)) return null;
+    // reasoning — ensure budget covers at least every objective once
     const objs = objectivesByLevel[lvl.id] ?? [];
+    const budget = Math.max(lvl.ai_question_budget ?? 5, objs.length);
+    if (rCount >= budget) return null;
     if (objs.length === 0) return null;
     try {
       const result = await reasoningFn({
