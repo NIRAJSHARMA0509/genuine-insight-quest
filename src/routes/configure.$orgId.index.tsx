@@ -8,7 +8,7 @@ import { slugify } from "@/lib/types";
 import { toast } from "sonner";
 import { CustomUrlsEditor } from "./configure.index";
 
-export const Route = createFileRoute("/configure/$orgId")({
+export const Route = createFileRoute("/configure/$orgId/")({
   head: () => ({ meta: [{ title: "Organisation — SGT" }] }),
   validateSearch: (s: Record<string, unknown>) => ({ newTest: s.newTest ? 1 : undefined }),
   component: OrgWorkspace,
@@ -66,6 +66,7 @@ function OrgWorkspace() {
       purpose,
     }).select("id").single();
     if (error) { toast.error(error.message); return; }
+    toast.success(`Test "${name}" created — opening configuration`);
     navigate({ to: "/configure/$orgId/test/$testId", params: { orgId: org.id, testId: data.id } });
   }
 
