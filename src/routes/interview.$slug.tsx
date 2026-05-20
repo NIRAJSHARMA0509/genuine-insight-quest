@@ -69,6 +69,7 @@ function InterviewRoom() {
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
   const [prepFeedback, setPrepFeedback] = useState<PrepFeedback | null>(null);
   const [suspendReason, setSuspendReason] = useState<string>("");
+  const [resolvedClosing, setResolvedClosing] = useState<string>("");
 
   const streamRef = useRef<MediaStream | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
