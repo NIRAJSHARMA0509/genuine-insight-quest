@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Organisation, Test, TestLevel, Question, QuestionRubric, Objective, ObjectiveCriterion } from "@/lib/types";
 import { DEFAULT_CLOSING, DEFAULT_INTRO } from "@/lib/types";
 import { synthesizeAlexVoice } from "@/lib/tts.functions";
-import { generateReasoningQuestion, generatePrepFeedback } from "@/lib/ai.functions";
+import { generateReasoningQuestion, generatePrepFeedback, expandMessage } from "@/lib/ai.functions";
 import alexAvatar from "@/assets/alex-avatar.jpg";
 
 export const Route = createFileRoute("/interview/$slug")({
