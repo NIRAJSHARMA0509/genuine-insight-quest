@@ -526,7 +526,7 @@ function InterviewRoom() {
           <p className="mt-8 label-mono">Interviewer</p>
           <h2 className="mt-2 text-xl font-semibold">Alex</h2>
           <p className="mt-1 text-sm text-muted-foreground">{org?.name}</p>
-          {totalLevels > 1 && <p className="mt-4 label-mono text-primary">Level {levelIdx + 1}/{totalLevels} · {levelLabel}</p>}
+          {/* level/mode intentionally hidden from candidate */}
         </div>
 
         <div className="relative flex flex-col rounded-[20px] border border-border bg-surface p-6">
