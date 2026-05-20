@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Organisation, Test, TestLevel, Question, QuestionRubric, Objective, ObjectiveCriterion } from "@/lib/types";
 import { DEFAULT_CLOSING, DEFAULT_INTRO } from "@/lib/types";
 import { synthesizeAlexVoice } from "@/lib/tts.functions";
-import { generateReasoningQuestion, generatePrepFeedback, expandMessage } from "@/lib/ai.functions";
+import { generateReasoningQuestion, generateClarifyingFollowUp, generatePrepFeedback, expandMessage } from "@/lib/ai.functions";
 import alexAvatar from "@/assets/alex-avatar.jpg";
 
 export const Route = createFileRoute("/interview/$slug")({
@@ -35,7 +35,7 @@ type Phase =
   | "suspended";
 
 interface Identity { name: string; email: string; reference: string; }
-interface TranscriptEntry { question: string; level_id: string; duration_s: number; }
+interface TranscriptEntry { question: string; level_id: string; duration_s: number; answer_text: string; parent_question_id?: string | null; }
 interface PrepFeedback { score: number; feedback: string; improvement_tip: string; }
 
 const RECORD_CAP_S = 600;
@@ -45,6 +45,7 @@ function InterviewRoom() {
   const navigate = useNavigate();
   const fetchVoice = useServerFn(synthesizeAlexVoice);
   const reasoningFn = useServerFn(generateReasoningQuestion);
+  const clarifyFn = useServerFn(generateClarifyingFollowUp);
   const prepFn = useServerFn(generatePrepFeedback);
   const expandFn = useServerFn(expandMessage);
 
@@ -60,7 +61,8 @@ function InterviewRoom() {
 
   const [levelIdx, setLevelIdx] = useState(0);
   const [qIdx, setQIdx] = useState(0); // question within current level
-  const [currentQuestion, setCurrentQuestion] = useState<{ text: string; think_s: number; answer_s: number } | null>(null);
+  const [currentQuestion, setCurrentQuestion] = useState<{ text: string; think_s: number; answer_s: number; question_id: string | null; is_follow_up: boolean } | null>(null);
+  const [followUpsAsked, setFollowUpsAsked] = useState(0); // for current clarifying parent
   const [reasoningCount, setReasoningCount] = useState(0); // AI questions asked in current reasoning level
 
   const [timeLeft, setTimeLeft] = useState(0);
@@ -81,6 +83,9 @@ function InterviewRoom() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const violationsRef = useRef(0);
   const phaseRef = useRef<Phase>("loading");
+  // live speech-to-text capture
+  const recognitionRef = useRef<any>(null); // eslint-disable-line @typescript-eslint/no-explicit-any
+  const liveTranscriptRef = useRef<string>("");
   useEffect(() => { phaseRef.current = phase; }, [phase]);
 
   /* ---------------- Load configuration ---------------- */
@@ -181,19 +186,55 @@ function InterviewRoom() {
   // (totalLevels / currentLevel deliberately not surfaced — students see one continuous interview)
 
   // Pick or generate the next question. Returns null if we should advance level.
+  // When a follow-up is generated for the same parent clarifying question, qIndex stays the same.
   const computeNextQuestion = useCallback(async (
     lvlIndex: number,
     qIndex: number,
     rCount: number,
     trans: TranscriptEntry[],
-  ): Promise<{ text: string; think_s: number; answer_s: number; rCountNext: number } | null> => {
+    followUps: number,
+    lastAnswerText: string,
+  ): Promise<{ text: string; think_s: number; answer_s: number; question_id: string | null; is_follow_up: boolean; rCountNext: number; followUpsNext: number; advanceQIdx: boolean } | null> => {
     const lvl = levels[lvlIndex];
     if (!lvl) return null;
-    if (lvl.mode === "fixed" || lvl.mode === "clarifying") {
+    if (lvl.mode === "fixed") {
       const list = questionsByLevel[lvl.id] ?? [];
       const q = list[qIndex];
       if (!q) return null;
-      return { text: q.question_text, think_s: q.think_time_seconds ?? 30, answer_s: Math.min(q.answer_time_seconds ?? 120, RECORD_CAP_S), rCountNext: rCount };
+      return { text: q.question_text, think_s: q.think_time_seconds ?? 30, answer_s: Math.min(q.answer_time_seconds ?? 120, RECORD_CAP_S), question_id: q.id, is_follow_up: false, rCountNext: rCount, followUpsNext: 0, advanceQIdx: true };
+    }
+    if (lvl.mode === "clarifying") {
+      const list = questionsByLevel[lvl.id] ?? [];
+      const currentParent = list[qIndex - 1]; // previous question (we already advanced qIndex on caller side for fixed; but for clarifying we may insert follow-up first)
+      // Decide: should we insert a follow-up for the most recent parent before moving to qIndex?
+      // We use the parent index = qIndex - 1 (the question just answered).
+      if (currentParent && followUps < (currentParent.max_follow_ups ?? 0) && lastAnswerText.trim().length > 0) {
+        try {
+          const priorFollowUps = trans
+            .filter((t) => t.parent_question_id === currentParent.id)
+            .map((t) => ({ question: t.question, answer: t.answer_text }));
+          const objs = objectivesByLevel[lvl.id] ?? [];
+          const r = await clarifyFn({
+            data: {
+              parent_question: currentParent.question_text,
+              candidate_answer: lastAnswerText,
+              follow_ups_so_far: priorFollowUps,
+              objectives: objs.map((o) => ({ title: o.title, description: o.description ?? undefined })),
+            },
+          });
+          if (r.question_text?.trim()) {
+            return { text: r.question_text.trim(), think_s: 15, answer_s: 90, question_id: currentParent.id, is_follow_up: true, rCountNext: rCount, followUpsNext: followUps + 1, advanceQIdx: false };
+          }
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          console.error("clarifying follow-up failed", e);
+          toast.error("Follow-up generation failed", { description: msg.slice(0, 200) });
+        }
+      }
+      // No follow-up — pick next fixed clarifying question at qIndex
+      const q = list[qIndex];
+      if (!q) return null;
+      return { text: q.question_text, think_s: q.think_time_seconds ?? 30, answer_s: Math.min(q.answer_time_seconds ?? 120, RECORD_CAP_S), question_id: q.id, is_follow_up: false, rCountNext: rCount, followUpsNext: 0, advanceQIdx: true };
     }
     // reasoning — ensure budget covers at least every objective once
     const objs = objectivesByLevel[lvl.id] ?? [];
@@ -208,18 +249,18 @@ function InterviewRoom() {
             description: o.description ?? undefined,
             criteria: (o.criteria ?? []).map((c) => ({ criterion: c.criterion, score: c.score })),
           })),
-          previous_transcript: trans.map((t) => ({ question: t.question, answer: `(${t.duration_s}s recorded)` })),
+          previous_transcript: trans.map((t) => ({ question: t.question, answer: t.answer_text || `(${t.duration_s}s recorded; no transcript)` })),
           question_number: rCount + 1,
         },
       });
-      return { text: result.question_text || "Tell me more about your motivation.", think_s: 30, answer_s: 120, rCountNext: rCount + 1 };
+      return { text: result.question_text || "Tell me more about your motivation.", think_s: 30, answer_s: 120, question_id: null, is_follow_up: false, rCountNext: rCount + 1, followUpsNext: 0, advanceQIdx: false };
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       console.error("reasoning gen failed", e);
       toast.error("AI question failed", { description: msg.slice(0, 200) });
       return null;
     }
-  }, [levels, questionsByLevel, objectivesByLevel, reasoningFn]);
+  }, [levels, questionsByLevel, objectivesByLevel, reasoningFn, clarifyFn]);
 
   /* ---------------- Recording ---------------- */
   const startRecording = useCallback(() => {
@@ -235,6 +276,29 @@ function InterviewRoom() {
     recordStartRef.current = Date.now();
     setTimeLeft(currentQuestion.answer_s);
     setPhase("recording");
+
+    // Start live speech-to-text (best effort; ignored if unsupported)
+    liveTranscriptRef.current = "";
+    try {
+      const w = window as unknown as { SpeechRecognition?: any; webkitSpeechRecognition?: any }; // eslint-disable-line @typescript-eslint/no-explicit-any
+      const SR = w.SpeechRecognition || w.webkitSpeechRecognition;
+      if (SR) {
+        const rec = new SR();
+        rec.continuous = true;
+        rec.interimResults = true;
+        rec.lang = "en-GB";
+        rec.onresult = (ev: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+          let finalChunk = "";
+          for (let i = ev.resultIndex; i < ev.results.length; i++) {
+            if (ev.results[i].isFinal) finalChunk += ev.results[i][0].transcript + " ";
+          }
+          if (finalChunk) liveTranscriptRef.current += finalChunk;
+        };
+        rec.onerror = () => { /* ignore */ };
+        rec.start();
+        recognitionRef.current = rec;
+      }
+    } catch { /* unsupported — proceed without transcript */ }
   }, [currentQuestion]);
 
   const startRecordingRef = useRef(startRecording);
@@ -245,26 +309,35 @@ function InterviewRoom() {
     setTranscript(nextTranscript);
     setPhase("transitioning");
 
-    // Try next question within current level
+    // qIdx semantics: "next list index to fetch" — question just answered was list[qIdx-1] (if fixed/clarifying).
     const lvl = levels[levelIdx];
     let nextLevelIdx = levelIdx;
-    let nextQIdx = qIdx + 1;
+    let nextQIdx = qIdx;
     let nextR = reasoningCount;
+    let nextFollowUps = followUpsAsked;
     let nextQ: Awaited<ReturnType<typeof computeNextQuestion>> = null;
 
     if (lvl) {
-      nextQ = await computeNextQuestion(levelIdx, nextQIdx, reasoningCount, nextTranscript);
+      nextQ = await computeNextQuestion(levelIdx, nextQIdx, reasoningCount, nextTranscript, followUpsAsked, entry.answer_text);
+      if (nextQ) {
+        nextFollowUps = nextQ.followUpsNext;
+        if (nextQ.advanceQIdx) nextQIdx = qIdx + 1; // consumed list[qIdx], move pointer
+        // if !advanceQIdx (follow-up or reasoning) keep qIdx as-is
+      }
     }
-    // If level exhausted, advance to next level
     while (!nextQ && nextLevelIdx + 1 < levels.length) {
       nextLevelIdx += 1;
       nextQIdx = 0;
       nextR = 0;
-      nextQ = await computeNextQuestion(nextLevelIdx, 0, 0, nextTranscript);
+      nextFollowUps = 0;
+      nextQ = await computeNextQuestion(nextLevelIdx, 0, 0, nextTranscript, 0, "");
+      if (nextQ) {
+        nextFollowUps = nextQ.followUpsNext;
+        if (nextQ.advanceQIdx) nextQIdx = 1; else nextQIdx = 0;
+      }
     }
 
     if (!nextQ) {
-      // Done — closing
       setPhase("closing");
       speak(resolvedClosing || closingText, async () => {
         if (sessionId) {
@@ -282,9 +355,10 @@ function InterviewRoom() {
     setLevelIdx(nextLevelIdx);
     setQIdx(nextQIdx);
     setReasoningCount(nextQ.rCountNext);
-    setCurrentQuestion({ text: nextQ.text, think_s: nextQ.think_s, answer_s: nextQ.answer_s });
+    setFollowUpsAsked(nextFollowUps);
+    setCurrentQuestion({ text: nextQ.text, think_s: nextQ.think_s, answer_s: nextQ.answer_s, question_id: nextQ.question_id, is_follow_up: nextQ.is_follow_up });
     speak(nextQ.text, () => setPhase("ready"));
-  }, [transcript, levels, levelIdx, qIdx, reasoningCount, computeNextQuestion, speak, closingText, resolvedClosing, sessionId, navigate, slug]);
+  }, [transcript, levels, levelIdx, qIdx, reasoningCount, followUpsAsked, computeNextQuestion, speak, closingText, resolvedClosing, sessionId, navigate, slug]);
 
   const submitAnswer = useCallback(() => {
     const mr = recorderRef.current;
@@ -292,10 +366,14 @@ function InterviewRoom() {
     const duration_s = Math.round((Date.now() - recordStartRef.current) / 1000);
     const qText = currentQuestion?.text ?? "";
     const lvlId = levels[levelIdx]?.id ?? "";
+    const parentId = currentQuestion?.question_id ?? null;
+    // Stop STT and capture text
+    try { recognitionRef.current?.stop(); } catch { /* noop */ }
+    recognitionRef.current = null;
+    const answerText = liveTranscriptRef.current.trim();
     mr.onstop = async () => {
-      const entry: TranscriptEntry = { question: qText, level_id: lvlId, duration_s };
+      const entry: TranscriptEntry = { question: qText, level_id: lvlId, duration_s, answer_text: answerText, parent_question_id: parentId };
 
-      // Prep mode: get feedback before advancing
       if (test?.purpose === "preparation") {
         setPhase("feedback");
         try {
@@ -305,7 +383,7 @@ function InterviewRoom() {
           const fb = await prepFn({
             data: {
               question_text: qText,
-              answer_text: `(Candidate spoke for ${duration_s}s; full audio not transcribed in this mode.)`,
+              answer_text: answerText || `(Candidate spoke for ${duration_s}s; no transcript captured.)`,
               rubrics: (matchedQ?.rubrics ?? []).map((r) => ({ example_response: r.example_response, score: r.score })),
               objectives: lvl ? (objectivesByLevel[lvl.id] ?? []).map((o) => ({ title: o.title, description: o.description })) : [],
             },
@@ -315,8 +393,6 @@ function InterviewRoom() {
           console.error("prep feedback failed", e);
           setPrepFeedback({ score: 0, feedback: "Couldn't generate feedback. Let's continue.", improvement_tip: "" });
         }
-        // wait for user to click Continue (handled in render)
-        // stash entry on a ref-like state pattern: store via closure into advance
         pendingEntryRef.current = entry;
         return;
       }
@@ -365,6 +441,7 @@ function InterviewRoom() {
     setSuspendReason(reason);
     setPhase("suspended");
     try { recorderRef.current?.stop(); } catch { /* noop */ }
+    try { recognitionRef.current?.stop(); } catch { /* noop */ }
     try { audioRef.current?.pause(); } catch { /* noop */ }
     streamRef.current?.getTracks().forEach((t) => t.stop());
     if (sessionId) {
@@ -434,13 +511,13 @@ function InterviewRoom() {
     setResolvedClosing(closingToSpeak);
 
     // Compute first question
-    const firstQ = await computeNextQuestion(0, 0, 0, []);
+    const firstQ = await computeNextQuestion(0, 0, 0, [], 0, "");
     if (!firstQ) {
       toast.error("This test has no questions configured yet.");
       return;
     }
-    setLevelIdx(0); setQIdx(0); setReasoningCount(firstQ.rCountNext);
-    setCurrentQuestion({ text: firstQ.text, think_s: firstQ.think_s, answer_s: firstQ.answer_s });
+    setLevelIdx(0); setQIdx(firstQ.advanceQIdx ? 1 : 0); setReasoningCount(firstQ.rCountNext); setFollowUpsAsked(firstQ.followUpsNext);
+    setCurrentQuestion({ text: firstQ.text, think_s: firstQ.think_s, answer_s: firstQ.answer_s, question_id: firstQ.question_id, is_follow_up: firstQ.is_follow_up });
     setPhase("intro_playing");
     void speak(introToSpeak, () => {
       void speak(firstQ.text, () => setPhase("ready"));
