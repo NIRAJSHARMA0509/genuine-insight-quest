@@ -10,6 +10,7 @@ import { CustomUrlsEditor } from "./configure";
 
 export const Route = createFileRoute("/configure/$orgId")({
   head: () => ({ meta: [{ title: "Organisation — SGT" }] }),
+  validateSearch: (s: Record<string, unknown>) => ({ newTest: s.newTest ? 1 : undefined }),
   component: OrgWorkspace,
 });
 
