@@ -34,6 +34,60 @@ async function callGateway(messages: GatewayMessage[], expectJson = false): Prom
   return data?.choices?.[0]?.message?.content ?? "";
 }
 
+/* ---------- Clarifying follow-up generator ---------- */
+
+export const generateClarifyingFollowUp = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      parent_question: z.string().min(1).max(2000),
+      candidate_answer: z.string().max(8000).default(""),
+      follow_ups_so_far: z.array(z.object({ question: z.string(), answer: z.string().optional() })).max(10).default([]),
+      objectives: z.array(z.object({ title: z.string(), description: z.string().nullable().optional() })).default([]),
+    }).parse,
+  )
+  .handler(async ({ data }) => {
+    const objBlock = data.objectives.length
+      ? data.objectives.map((o, i) => `${i + 1}. ${o.title}${o.description ? ` — ${o.description}` : ""}`).join("\n")
+      : "(none specified)";
+    const priorBlock = data.follow_ups_so_far.length
+      ? data.follow_ups_so_far.map((t, i) => `Follow-up ${i + 1}: ${t.question}\nAnswer: ${t.answer ?? "(no transcript)"}`).join("\n\n")
+      : "(no follow-ups yet)";
+    const messages: GatewayMessage[] = [
+      {
+        role: "system",
+        content:
+`You are Alex, a warm admissions interviewer. The candidate has just answered a question and you need to ask ONE clarifying follow-up that digs into something specific they said.
+
+Rules:
+- Output exactly one question — plain conversational English, no preamble, no numbering, no quotes.
+- Keep it under 35 words.
+- Directly reference what the candidate said (paraphrase or quote a short phrase).
+- Probe a vague, surprising, or assertion-without-evidence part of their answer.
+- Do not repeat the parent question or any prior follow-ups.
+- Avoid yes/no questions.`,
+      },
+      {
+        role: "user",
+        content:
+`Parent question:
+${data.parent_question}
+
+Candidate's answer:
+${data.candidate_answer || "(no transcript captured)"}
+
+Prior follow-ups in this thread:
+${priorBlock}
+
+Objectives this question relates to:
+${objBlock}
+
+Produce the next clarifying follow-up now.`,
+      },
+    ];
+    const text = (await callGateway(messages)).trim().replace(/^["']|["']$/g, "");
+    return { question_text: text };
+  });
+
 /* ---------- Reasoning question generator ---------- */
 
 export const generateReasoningQuestion = createServerFn({ method: "POST" })
