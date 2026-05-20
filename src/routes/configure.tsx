@@ -65,7 +65,7 @@ function ConfigureRoot() {
         website_url: website || null,
         description: description || null,
         contact_email: contactEmail || null,
-        custom_urls: customUrls.filter((u) => u.url.trim()),
+        custom_urls: customUrls.filter((u) => u.url.trim()) as unknown as never,
         programme_name: type === "university" ? programmeName || null : null,
         intake_year: type === "university" ? intakeYear || null : null,
         nature_of_service: type === "service_provider" ? natureOfService || null : null,
