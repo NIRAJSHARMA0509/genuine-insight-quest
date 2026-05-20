@@ -8,7 +8,7 @@ import { slugify } from "@/lib/types";
 import { toast } from "sonner";
 import { CustomUrlsEditor } from "./configure.index";
 
-export const Route = createFileRoute("/configure/$orgId")({
+export const Route = createFileRoute("/configure/$orgId/")({
   head: () => ({ meta: [{ title: "Organisation — SGT" }] }),
   validateSearch: (s: Record<string, unknown>) => ({ newTest: s.newTest ? 1 : undefined }),
   component: OrgWorkspace,
