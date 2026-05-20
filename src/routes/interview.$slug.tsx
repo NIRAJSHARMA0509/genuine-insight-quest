@@ -400,6 +400,8 @@ function InterviewRoom() {
   }, [test, suspendInterview]);
 
   /* ---------------- Begin ---------------- */
+  const [resolvedClosing, setResolvedClosing] = useState<string>("");
+
   const beginInterview = useCallback(async () => {
     if (!test || !org) return;
     const { data, error } = await supabase.from("interview_sessions").insert({
@@ -414,6 +416,23 @@ function InterviewRoom() {
     if (error) { toast.error(error.message); return; }
     setSessionId(data.id);
 
+    // Resolve intro / closing — expand via AI if mode is 'prompt'
+    let introToSpeak = introText;
+    let closingToSpeak = closingText;
+    try {
+      if (test.intro_mode === "prompt" && (test.intro_message ?? "").trim()) {
+        const r = await expandFn({ data: { kind: "intro", prompt: test.intro_message!, organisation_name: org.name, test_name: test.name } });
+        if (r.text) introToSpeak = r.text;
+      }
+      if (test.closing_mode === "prompt" && (test.closing_message ?? "").trim()) {
+        const r = await expandFn({ data: { kind: "closing", prompt: test.closing_message!, organisation_name: org.name, test_name: test.name } });
+        if (r.text) closingToSpeak = r.text;
+      }
+    } catch (e) {
+      console.error("expandMessage failed", e);
+    }
+    setResolvedClosing(closingToSpeak);
+
     // Compute first question
     const firstQ = await computeNextQuestion(0, 0, 0, []);
     if (!firstQ) {
@@ -423,10 +442,10 @@ function InterviewRoom() {
     setLevelIdx(0); setQIdx(0); setReasoningCount(firstQ.rCountNext);
     setCurrentQuestion({ text: firstQ.text, think_s: firstQ.think_s, answer_s: firstQ.answer_s });
     setPhase("intro_playing");
-    void speak(introText, () => {
+    void speak(introToSpeak, () => {
       void speak(firstQ.text, () => setPhase("ready"));
     });
-  }, [test, org, identity, introText, computeNextQuestion, speak]);
+  }, [test, org, identity, introText, closingText, computeNextQuestion, speak, expandFn]);
 
   /* ---------------- Cleanup ---------------- */
   useEffect(() => () => {
