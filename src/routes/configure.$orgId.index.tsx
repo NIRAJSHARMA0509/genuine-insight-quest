@@ -66,6 +66,7 @@ function OrgWorkspace() {
       purpose,
     }).select("id").single();
     if (error) { toast.error(error.message); return; }
+    toast.success(`Test "${name}" created — opening configuration`);
     navigate({ to: "/configure/$orgId/test/$testId", params: { orgId: org.id, testId: data.id } });
   }
 
