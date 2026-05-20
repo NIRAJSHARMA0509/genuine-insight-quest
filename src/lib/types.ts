@@ -26,6 +26,8 @@ export interface Organisation {
   updated_at: string;
 }
 
+export type MessageMode = "literal" | "prompt";
+
 export interface Test {
   id: string;
   organisation_id: string;
@@ -36,6 +38,8 @@ export interface Test {
   attempts_context_note: string | null;
   intro_message: string | null;
   closing_message: string | null;
+  intro_mode: MessageMode;
+  closing_mode: MessageMode;
   proctoring_enabled: boolean;
   status: PublishStatus;
   created_at: string;
