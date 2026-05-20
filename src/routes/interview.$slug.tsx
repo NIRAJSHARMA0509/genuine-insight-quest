@@ -268,7 +268,7 @@ function InterviewRoom() {
           await supabase.from("interview_sessions").update({
             completed_at: new Date().toISOString(),
             status: "completed",
-            full_transcript: nextTranscript as unknown as object[],
+            full_transcript: nextTranscript as never,
           }).eq("id", sessionId);
         }
         navigate({ to: "/interview/$slug/complete", params: { slug } });
@@ -368,7 +368,7 @@ function InterviewRoom() {
       await supabase.from("interview_sessions").update({
         completed_at: new Date().toISOString(),
         status: "suspended",
-        proctoring_flags: [{ reason, at: new Date().toISOString() }] as unknown as object[],
+        proctoring_flags: [{ reason, at: new Date().toISOString() }] as never,
       }).eq("id", sessionId);
     }
   }, [sessionId]);
