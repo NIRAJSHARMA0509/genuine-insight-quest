@@ -513,7 +513,7 @@ function InterviewRoom() {
     );
   }
 
-  const levelLabel = currentLevel ? `${currentLevel.name} · ${currentLevel.mode}` : "";
+  // (level label intentionally not shown to the candidate)
 
   return (
     <div className="min-h-screen bg-background">
