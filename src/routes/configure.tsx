@@ -74,7 +74,8 @@ function ConfigureRoot() {
       .single();
     setSaving(false);
     if (error) { toast.error(error.message); return; }
-    navigate({ to: "/configure/$orgId", params: { orgId: data.id } });
+    toast.success(`${name.trim()} created — now add your first test`);
+    navigate({ to: "/configure/$orgId", params: { orgId: data.id }, search: { newTest: 1 } as never });
   }
 
   return (

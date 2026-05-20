@@ -90,13 +90,15 @@ function LandingPage() {
           ) : (
             <div className="grid gap-3 md:grid-cols-2">
               {orgs.map((o) => (
-                <Link
+                <div
                   key={o.id}
-                  to="/configure/$orgId"
-                  params={{ orgId: o.id }}
                   className="surface-card flex items-center justify-between gap-4 p-5 transition hover:border-[var(--color-border-active)]"
                 >
-                  <div className="flex min-w-0 items-center gap-4">
+                  <Link
+                    to="/configure/$orgId"
+                    params={{ orgId: o.id }}
+                    className="flex min-w-0 flex-1 items-center gap-4"
+                  >
                     {o.logo_url ? (
                       <img src={o.logo_url} alt="" className="h-12 w-12 rounded-md object-contain bg-elevated" />
                     ) : (
@@ -110,9 +112,25 @@ function LandingPage() {
                         {o.type === "university" ? "University" : "Service Provider"}
                       </p>
                     </div>
+                  </Link>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Link
+                      to="/configure/$orgId"
+                      params={{ orgId: o.id }}
+                      search={{ newTest: 1 } as never}
+                      className="inline-flex items-center gap-1.5 rounded-[10px] bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:opacity-90"
+                    >
+                      <Plus className="h-3 w-3" /> New test
+                    </Link>
+                    <Link
+                      to="/configure/$orgId"
+                      params={{ orgId: o.id }}
+                      className="rounded-[10px] border border-border px-3 py-2 text-xs hover:bg-elevated"
+                    >
+                      Open
+                    </Link>
                   </div>
-                  <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-                </Link>
+                </div>
               ))}
             </div>
           )}
