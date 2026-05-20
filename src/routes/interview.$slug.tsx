@@ -579,7 +579,7 @@ function InterviewRoom() {
                 </motion.div>
               ) : currentQuestion ? (
                 <motion.div key={`q-${levelIdx}-${qIdx}-${reasoningCount}`} initial={{ opacity: 0, filter: "blur(4px)", y: 8 }} animate={{ opacity: 1, filter: "blur(0px)", y: 0 }} exit={{ opacity: 0, filter: "blur(4px)" }} transition={{ duration: 0.4 }}>
-                  <p className="label-mono">{currentLevel?.mode === "reasoning" ? `Reasoning question ${reasoningCount}` : `Question ${qIdx + 1}`}</p>
+                  <p className="label-mono">Question</p>
                   <h2 className="mt-3 text-2xl font-semibold leading-snug tracking-tight md:text-3xl">{currentQuestion.text}</h2>
                 </motion.div>
               ) : null}
