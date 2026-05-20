@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { Check } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { DEFAULT_CLOSING } from "@/lib/types";
 
 export const Route = createFileRoute("/interview/$slug/complete")({
   head: () => ({
@@ -16,45 +17,34 @@ export const Route = createFileRoute("/interview/$slug/complete")({
 
 function CompletePage() {
   const { slug } = Route.useParams();
-  const [institution, setInstitution] = useState<string>("");
+  const [orgName, setOrgName] = useState<string>("");
   const [logo, setLogo] = useState<string | null>(null);
   const [closing, setClosing] = useState<string>("");
 
   useEffect(() => {
-    supabase.from("universities").select("institution_name,logo_url,configuration").eq("slug", slug).maybeSingle().then(({ data }) => {
-      if (!data) return;
-      setInstitution(data.institution_name);
-      setLogo(data.logo_url);
-      const cfg = data.configuration as { closing_message?: string };
-      setClosing(cfg?.closing_message || "");
-    });
+    (async () => {
+      const { data: t } = await supabase.from("tests").select("organisation_id, closing_message").eq("slug", slug).maybeSingle();
+      if (!t) return;
+      setClosing(t.closing_message || "");
+      if (t.organisation_id) {
+        const { data: o } = await supabase.from("organisations").select("name, logo_url").eq("id", t.organisation_id).maybeSingle();
+        if (o) { setOrgName(o.name); setLogo(o.logo_url); }
+      }
+    })();
   }, [slug]);
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4">
-      {/* soft floating orbs */}
       <Orbs />
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.7 }}
-        className="relative z-10 max-w-lg text-center"
-      >
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }} className="relative z-10 max-w-lg text-center">
         {logo && <img src={logo} alt="" className="mx-auto h-14 w-14 object-contain" />}
-        <p className="label-mono mt-4">{institution}</p>
-
-        <motion.div
-          initial={{ scale: 0.6, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ delay: 0.3, type: "spring", stiffness: 180 }}
-          className="mx-auto mt-8 grid h-20 w-20 place-items-center rounded-full bg-success/15 text-success glow-ring"
-        >
+        <p className="label-mono mt-4">{orgName}</p>
+        <motion.div initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.3, type: "spring", stiffness: 180 }} className="mx-auto mt-8 grid h-20 w-20 place-items-center rounded-full bg-success/15 text-success glow-ring">
           <Check className="h-10 w-10" strokeWidth={2.5} />
         </motion.div>
-
         <h1 className="mt-8 text-4xl font-semibold tracking-[-0.02em]">Your interview is complete</h1>
         <div className="surface-card mt-8 p-6 text-left text-sm leading-relaxed text-muted-foreground">
-          {closing || "Thank you for your time. One of our team members will review your interview and be in touch with you shortly regarding next steps."}
+          {closing || DEFAULT_CLOSING}
         </div>
         <p className="mt-6 text-xs text-muted-foreground">You may now close this window.</p>
       </motion.div>
