@@ -178,8 +178,7 @@ function InterviewRoom() {
   });
 
   /* ---------------- Question advancement ---------------- */
-  const totalLevels = levels.length;
-  const currentLevel = levels[levelIdx];
+  // (totalLevels / currentLevel deliberately not surfaced — students see one continuous interview)
 
   // Pick or generate the next question. Returns null if we should advance level.
   const computeNextQuestion = useCallback(async (
