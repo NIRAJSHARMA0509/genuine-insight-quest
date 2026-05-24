@@ -34,6 +34,49 @@ async function callGateway(messages: GatewayMessage[], expectJson = false): Prom
   return data?.choices?.[0]?.message?.content ?? "";
 }
 
+/* ---------- Audio transcription (server-side fallback) ---------- */
+
+export const transcribeAudio = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      audio_base64: z.string().min(1),
+      mime_type: z.string().default("audio/webm"),
+    }).parse,
+  )
+  .handler(async ({ data }) => {
+    const key = process.env.LOVABLE_API_KEY;
+    if (!key) throw new Error("LOVABLE_API_KEY not configured");
+    try {
+      const res = await fetch(GATEWAY_URL, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: MODEL,
+          messages: [
+            {
+              role: "user",
+              content: [
+                { type: "text", text: "Transcribe the spoken audio verbatim into plain English text. Output ONLY the transcript with no preamble, no quotes, no labels. If the audio is silent or unintelligible, output an empty string." },
+                { type: "input_audio", input_audio: { data: data.audio_base64, format: data.mime_type.includes("webm") ? "webm" : data.mime_type.includes("mp4") ? "mp4" : "webm" } },
+              ],
+            },
+          ],
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.text();
+        console.error("transcribeAudio gateway error", res.status, body.slice(0, 300));
+        return { text: "" };
+      }
+      const json = await res.json();
+      const text = (json?.choices?.[0]?.message?.content ?? "").trim().replace(/^["']|["']$/g, "");
+      return { text };
+    } catch (e) {
+      console.error("transcribeAudio failed", e);
+      return { text: "" };
+    }
+  });
+
 /* ---------- Clarifying follow-up generator ---------- */
 
 export const generateClarifyingFollowUp = createServerFn({ method: "POST" })

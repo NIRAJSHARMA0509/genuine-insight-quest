@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Organisation, Test, TestLevel, Question, QuestionRubric, Objective, ObjectiveCriterion } from "@/lib/types";
 import { DEFAULT_CLOSING, DEFAULT_INTRO } from "@/lib/types";
 import { synthesizeAlexVoice } from "@/lib/tts.functions";
-import { generateReasoningQuestion, generateClarifyingFollowUp, generatePrepFeedback, expandMessage } from "@/lib/ai.functions";
+import { generateReasoningQuestion, generateClarifyingFollowUp, generatePrepFeedback, expandMessage, transcribeAudio } from "@/lib/ai.functions";
 import alexAvatar from "@/assets/alex-avatar.jpg";
 
 export const Route = createFileRoute("/interview/$slug")({
@@ -48,6 +48,7 @@ function InterviewRoom() {
   const clarifyFn = useServerFn(generateClarifyingFollowUp);
   const prepFn = useServerFn(generatePrepFeedback);
   const expandFn = useServerFn(expandMessage);
+  const transcribeFn = useServerFn(transcribeAudio);
 
   const [phase, setPhase] = useState<Phase>("loading");
   const [org, setOrg] = useState<Organisation | null>(null);
@@ -397,7 +398,28 @@ function InterviewRoom() {
     recognitionRef.current = null;
     const answerText = liveTranscriptRef.current.trim();
     mr.onstop = async () => {
-      const entry: TranscriptEntry = { question: qText, level_id: lvlId, duration_s, answer_text: answerText, parent_question_id: parentId };
+      // Assemble recording blob for server-side transcription if live STT failed
+      let resolvedAnswer = answerText;
+      if (!resolvedAnswer && chunksRef.current.length > 0) {
+        try {
+          const blob = new Blob(chunksRef.current, { type: mr.mimeType || "video/webm" });
+          // Strip to audio-only mime hint for the model
+          const buf = await blob.arrayBuffer();
+          // Base64 encode
+          let binary = "";
+          const bytes = new Uint8Array(buf);
+          const chunkSize = 0x8000;
+          for (let i = 0; i < bytes.length; i += chunkSize) {
+            binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+          }
+          const b64 = btoa(binary);
+          const t = await transcribeFn({ data: { audio_base64: b64, mime_type: "audio/webm" } });
+          if (t.text) resolvedAnswer = t.text;
+        } catch (e) {
+          console.error("server transcription failed", e);
+        }
+      }
+      const entry: TranscriptEntry = { question: qText, level_id: lvlId, duration_s, answer_text: resolvedAnswer, parent_question_id: parentId };
 
       if (test?.purpose === "preparation") {
         setPhase("feedback");
@@ -408,7 +430,7 @@ function InterviewRoom() {
           const fb = await prepFn({
             data: {
               question_text: qText,
-              answer_text: answerText || `(Candidate spoke for ${duration_s}s; no transcript captured.)`,
+              answer_text: resolvedAnswer || `(Candidate spoke for ${duration_s}s; no transcript captured.)`,
               rubrics: (matchedQ?.rubrics ?? []).map((r) => ({ example_response: r.example_response, score: r.score })),
               objectives: lvl ? (objectivesByLevel[lvl.id] ?? []).map((o) => ({ title: o.title, description: o.description })) : [],
             },
@@ -424,7 +446,7 @@ function InterviewRoom() {
       void advanceAfterAnswer(entry);
     };
     try { mr.stop(); } catch { /* noop */ }
-  }, [currentQuestion, levels, levelIdx, test, questionsByLevel, objectivesByLevel, prepFn, advanceAfterAnswer]);
+  }, [currentQuestion, levels, levelIdx, test, questionsByLevel, objectivesByLevel, prepFn, advanceAfterAnswer, transcribeFn]);
 
   const pendingEntryRef = useRef<TranscriptEntry | null>(null);
   const submitAnswerRef = useRef(submitAnswer);
