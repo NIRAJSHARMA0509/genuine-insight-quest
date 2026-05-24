@@ -99,24 +99,24 @@ function TestBuilder() {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="label-mono">Intro message</span>
-              <select className="rounded-[8px] border border-border bg-elevated px-2 py-1 text-xs" value={test.intro_mode} onChange={(e) => setTest({ ...test, intro_mode: e.target.value as "literal" | "prompt" })}>
+              <select className="rounded-[8px] border border-border bg-elevated px-2 py-1 text-xs" value={test.intro_mode} onChange={async (e) => { const next = e.target.value as "literal" | "prompt"; setTest({ ...test, intro_mode: next }); await supabase.from("tests").update({ intro_mode: next }).eq("id", test.id); }}>
                 <option value="literal">Use as-is</option>
                 <option value="prompt">Use as prompt for AI</option>
               </select>
             </div>
-            <textarea rows={3} className={inputClass} placeholder={test.intro_mode === "prompt" ? "e.g. Welcome the candidate warmly, mention the MSc Data Science programme, and remind them that proctoring is active." : DEFAULT_INTRO.slice(0, 120) + "…"} value={test.intro_message ?? ""} onChange={(e) => setTest({ ...test, intro_message: e.target.value })} />
-            <p className="text-xs text-muted-foreground">{test.intro_mode === "prompt" ? "AI will generate the spoken intro from this brief at interview start." : "Text above is spoken verbatim by Alex."}</p>
+            <textarea rows={3} className={inputClass} placeholder={test.intro_mode === "prompt" ? "e.g. Welcome the candidate warmly, mention the MSc Data Science programme, and remind them that proctoring is active." : DEFAULT_INTRO.slice(0, 120) + "…"} value={test.intro_message ?? ""} onChange={(e) => setTest({ ...test, intro_message: e.target.value })} onBlur={async (e) => { await supabase.from("tests").update({ intro_message: e.target.value }).eq("id", test.id); }} />
+            <p className="text-xs text-muted-foreground">{test.intro_mode === "prompt" ? "AI will generate the spoken intro from this brief at interview start." : "Text above is spoken verbatim by Alex."} Auto-saves on blur.</p>
           </div>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="label-mono">Closing message</span>
-              <select className="rounded-[8px] border border-border bg-elevated px-2 py-1 text-xs" value={test.closing_mode} onChange={(e) => setTest({ ...test, closing_mode: e.target.value as "literal" | "prompt" })}>
+              <select className="rounded-[8px] border border-border bg-elevated px-2 py-1 text-xs" value={test.closing_mode} onChange={async (e) => { const next = e.target.value as "literal" | "prompt"; setTest({ ...test, closing_mode: next }); await supabase.from("tests").update({ closing_mode: next }).eq("id", test.id); }}>
                 <option value="literal">Use as-is</option>
                 <option value="prompt">Use as prompt for AI</option>
               </select>
             </div>
-            <textarea rows={3} className={inputClass} placeholder={test.closing_mode === "prompt" ? "e.g. Thank the candidate, say the admissions team will be in touch within 7 days, wish them well." : DEFAULT_CLOSING.slice(0, 120) + "…"} value={test.closing_message ?? ""} onChange={(e) => setTest({ ...test, closing_message: e.target.value })} />
-            <p className="text-xs text-muted-foreground">{test.closing_mode === "prompt" ? "AI will generate the spoken closing from this brief at interview start." : "Text above is spoken verbatim by Alex."}</p>
+            <textarea rows={3} className={inputClass} placeholder={test.closing_mode === "prompt" ? "e.g. Thank the candidate, say the admissions team will be in touch within 7 days, wish them well." : DEFAULT_CLOSING.slice(0, 120) + "…"} value={test.closing_message ?? ""} onChange={(e) => setTest({ ...test, closing_message: e.target.value })} onBlur={async (e) => { await supabase.from("tests").update({ closing_message: e.target.value }).eq("id", test.id); }} />
+            <p className="text-xs text-muted-foreground">{test.closing_mode === "prompt" ? "AI will generate the spoken closing from this brief at interview start." : "Text above is spoken verbatim by Alex."} Auto-saves on blur.</p>
           </div>
           <label className="flex items-center justify-between rounded-[10px] border border-border bg-elevated px-4 py-3">
             <div>
