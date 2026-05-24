@@ -48,6 +48,7 @@ function InterviewRoom() {
   const clarifyFn = useServerFn(generateClarifyingFollowUp);
   const prepFn = useServerFn(generatePrepFeedback);
   const expandFn = useServerFn(expandMessage);
+  const transcribeFn = useServerFn(transcribeAudio);
 
   const [phase, setPhase] = useState<Phase>("loading");
   const [org, setOrg] = useState<Organisation | null>(null);
