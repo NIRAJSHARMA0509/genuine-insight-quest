@@ -197,72 +197,94 @@ function InterviewRoom() {
   ): Promise<{ text: string; think_s: number; answer_s: number; question_id: string | null; is_follow_up: boolean; rCountNext: number; followUpsNext: number; advanceQIdx: boolean } | null> => {
     const lvl = levels[lvlIndex];
     if (!lvl) return null;
-    if (lvl.mode === "fixed") {
-      const list = questionsByLevel[lvl.id] ?? [];
-      const q = list[qIndex];
-      if (!q) return null;
-      return { text: q.question_text, think_s: q.think_time_seconds ?? 30, answer_s: Math.min(q.answer_time_seconds ?? 120, RECORD_CAP_S), question_id: q.id, is_follow_up: false, rCountNext: rCount, followUpsNext: 0, advanceQIdx: true };
-    }
-    if (lvl.mode === "clarifying") {
-      const list = questionsByLevel[lvl.id] ?? [];
-      const currentParent = list[qIndex - 1]; // previous question (we already advanced qIndex on caller side for fixed; but for clarifying we may insert follow-up first)
-      // Decide: should we insert a follow-up for the most recent parent before moving to qIndex?
-      // We use the parent index = qIndex - 1 (the question just answered).
-      if (currentParent && followUps < (currentParent.max_follow_ups ?? 0)) {
-        try {
-          const priorFollowUps = trans
-            .filter((t) => t.parent_question_id === currentParent.id)
-            .map((t) => ({ question: t.question, answer: t.answer_text }));
-          const objs = objectivesByLevel[lvl.id] ?? [];
-          const answerForAi = lastAnswerText.trim().length > 0
-            ? lastAnswerText
-            : "(Live transcript unavailable — the candidate gave a spoken answer that was not captured. Ask a thoughtful follow-up that probes a likely interesting angle of the parent question without assuming specific content of their response.)";
-          const r = await clarifyFn({
-            data: {
-              parent_question: currentParent.question_text,
-              candidate_answer: answerForAi,
-              follow_ups_so_far: priorFollowUps,
-              objectives: objs.map((o) => ({ title: o.title, description: o.description ?? undefined })),
-            },
-          });
-          if (r.question_text?.trim()) {
-            return { text: r.question_text.trim(), think_s: 15, answer_s: 90, question_id: currentParent.id, is_follow_up: true, rCountNext: rCount, followUpsNext: followUps + 1, advanceQIdx: false };
-          }
-        } catch (e) {
-          const msg = e instanceof Error ? e.message : String(e);
-          console.error("clarifying follow-up failed", e);
-          toast.error("Follow-up generation failed", { description: msg.slice(0, 200) });
-        }
-      }
-      // No follow-up — pick next fixed clarifying question at qIndex
-      const q = list[qIndex];
-      if (!q) return null;
-      return { text: q.question_text, think_s: q.think_time_seconds ?? 30, answer_s: Math.min(q.answer_time_seconds ?? 120, RECORD_CAP_S), question_id: q.id, is_follow_up: false, rCountNext: rCount, followUpsNext: 0, advanceQIdx: true };
-    }
-    // reasoning — ensure budget covers at least every objective once
+    const list = questionsByLevel[lvl.id] ?? [];
     const objs = objectivesByLevel[lvl.id] ?? [];
-    const budget = Math.max(lvl.ai_question_budget ?? 5, objs.length);
-    if (rCount >= budget) return null;
-    if (objs.length === 0) return null;
-    try {
-      const result = await reasoningFn({
-        data: {
-          objectives: objs.map((o) => ({
-            title: o.title,
-            description: o.description ?? undefined,
-            criteria: (o.criteria ?? []).map((c) => ({ criterion: c.criterion, score: c.score })),
-          })),
-          previous_transcript: trans.map((t) => ({ question: t.question, answer: t.answer_text || `(${t.duration_s}s recorded; no transcript)` })),
-          question_number: rCount + 1,
-        },
-      });
-      return { text: result.question_text || "Tell me more about your motivation.", think_s: 30, answer_s: 120, question_id: null, is_follow_up: false, rCountNext: rCount + 1, followUpsNext: 0, advanceQIdx: false };
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      console.error("reasoning gen failed", e);
-      toast.error("AI question failed", { description: msg.slice(0, 200) });
-      return null;
+
+    // Behaviour is now driven by DATA, not just the mode flag:
+    //  1. If the most-recent parent question still has follow-ups budget left → generate a clarifying follow-up.
+    //  2. Else if there's another fixed question in the list → ask it.
+    //  3. Else if this level has objectives → ask AI reasoning questions until budget exhausted.
+    //  4. Else → null (advance level).
+
+    // (1) Follow-up on most recent parent
+    const currentParent = list[qIndex - 1];
+    if (currentParent && followUps < (currentParent.max_follow_ups ?? 0)) {
+      try {
+        const priorFollowUps = trans
+          .filter((t) => t.parent_question_id === currentParent.id)
+          .map((t) => ({ question: t.question, answer: t.answer_text }));
+        const answerForAi = lastAnswerText.trim().length > 0
+          ? lastAnswerText
+          : "(Live transcript unavailable — the candidate gave a spoken answer that was not captured. Ask a thoughtful follow-up that probes a likely interesting angle of the parent question without assuming specific content of their response.)";
+        const r = await clarifyFn({
+          data: {
+            parent_question: currentParent.question_text,
+            candidate_answer: answerForAi,
+            follow_ups_so_far: priorFollowUps,
+            objectives: objs.map((o) => ({ title: o.title, description: o.description ?? undefined })),
+          },
+        });
+        if (r.question_text?.trim()) {
+          return { text: r.question_text.trim(), think_s: 15, answer_s: 90, question_id: currentParent.id, is_follow_up: true, rCountNext: rCount, followUpsNext: followUps + 1, advanceQIdx: false };
+        }
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.error("clarifying follow-up failed", e);
+        toast.error("Follow-up generation failed", { description: msg.slice(0, 200) });
+      }
     }
+
+    // (2) Next fixed question in the list
+    const nextFixed = list[qIndex];
+    if (nextFixed) {
+      return {
+        text: nextFixed.question_text,
+        think_s: nextFixed.think_time_seconds ?? 30,
+        answer_s: Math.min(nextFixed.answer_time_seconds ?? 120, RECORD_CAP_S),
+        question_id: nextFixed.id,
+        is_follow_up: false,
+        rCountNext: rCount,
+        followUpsNext: 0,
+        advanceQIdx: true,
+      };
+    }
+
+    // (3) Reasoning over objectives (if any are configured for this level)
+    if (objs.length > 0) {
+      const declaredBudget = lvl.mode === "reasoning" ? (lvl.ai_question_budget ?? 5) : Math.max(objs.length, 3);
+      const budget = Math.max(declaredBudget, objs.length);
+      if (rCount >= budget) return null;
+      try {
+        const result = await reasoningFn({
+          data: {
+            objectives: objs.map((o) => ({
+              title: o.title,
+              description: o.description ?? undefined,
+              criteria: (o.criteria ?? []).map((c) => ({ criterion: c.criterion, score: c.score })),
+            })),
+            previous_transcript: trans.map((t) => ({ question: t.question, answer: t.answer_text || `(${t.duration_s}s recorded; no transcript)` })),
+            question_number: rCount + 1,
+          },
+        });
+        return {
+          text: result.question_text || "Tell me more about your motivation.",
+          think_s: 30,
+          answer_s: 120,
+          question_id: null,
+          is_follow_up: false,
+          rCountNext: rCount + 1,
+          followUpsNext: 0,
+          advanceQIdx: false,
+        };
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.error("reasoning gen failed", e);
+        toast.error("AI question failed", { description: msg.slice(0, 200) });
+        return null;
+      }
+    }
+
+    return null;
   }, [levels, questionsByLevel, objectivesByLevel, reasoningFn, clarifyFn]);
 
   /* ---------------- Recording ---------------- */
