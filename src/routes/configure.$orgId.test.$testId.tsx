@@ -175,6 +175,18 @@ function LevelEditor({ level, onChanged }: { level: TestLevel; onChanged: () => 
 
   useEffect(() => { void loadChildren(); }, [loadChildren]);
 
+  // Auto-persist mode/budget changes so users can't forget to click "Save level".
+  async function changeMode(next: LevelMode) {
+    setMode(next);
+    const { error } = await supabase.from("test_levels").update({ mode: next }).eq("id", level.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success(`Mode set to ${next}`);
+    onChanged();
+  }
+  async function changeBudget(next: number) {
+    setBudget(next);
+    await supabase.from("test_levels").update({ ai_question_budget: next }).eq("id", level.id);
+  }
   async function saveLevel() {
     const { error } = await supabase.from("test_levels").update({ name, mode, ai_question_budget: budget }).eq("id", level.id);
     if (error) { toast.error(error.message); return; }
