@@ -208,16 +208,19 @@ function InterviewRoom() {
       const currentParent = list[qIndex - 1]; // previous question (we already advanced qIndex on caller side for fixed; but for clarifying we may insert follow-up first)
       // Decide: should we insert a follow-up for the most recent parent before moving to qIndex?
       // We use the parent index = qIndex - 1 (the question just answered).
-      if (currentParent && followUps < (currentParent.max_follow_ups ?? 0) && lastAnswerText.trim().length > 0) {
+      if (currentParent && followUps < (currentParent.max_follow_ups ?? 0)) {
         try {
           const priorFollowUps = trans
             .filter((t) => t.parent_question_id === currentParent.id)
             .map((t) => ({ question: t.question, answer: t.answer_text }));
           const objs = objectivesByLevel[lvl.id] ?? [];
+          const answerForAi = lastAnswerText.trim().length > 0
+            ? lastAnswerText
+            : "(Live transcript unavailable — the candidate gave a spoken answer that was not captured. Ask a thoughtful follow-up that probes a likely interesting angle of the parent question without assuming specific content of their response.)";
           const r = await clarifyFn({
             data: {
               parent_question: currentParent.question_text,
-              candidate_answer: lastAnswerText,
+              candidate_answer: answerForAi,
               follow_ups_so_far: priorFollowUps,
               objectives: objs.map((o) => ({ title: o.title, description: o.description ?? undefined })),
             },
