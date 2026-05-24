@@ -252,8 +252,8 @@ function LevelEditor({ level, onChanged }: { level: TestLevel; onChanged: () => 
   return (
     <div className="surface-card p-6 space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <input className={`${inputClass} max-w-xs`} value={name} onChange={(e) => setName(e.target.value)} placeholder="Level name" />
-        <select className={`${inputClass} max-w-[200px]`} value={mode} onChange={(e) => setMode(e.target.value as LevelMode)}>
+        <input className={`${inputClass} max-w-xs`} value={name} onChange={(e) => setName(e.target.value)} onBlur={() => { if (name !== level.name) void saveLevel(); }} placeholder="Level name" />
+        <select className={`${inputClass} max-w-[220px]`} value={mode} onChange={(e) => void changeMode(e.target.value as LevelMode)}>
           <option value="fixed">Fixed questions</option>
           <option value="clarifying">Clarifying questions</option>
           <option value="reasoning">Reasoning (AI-generated)</option>
@@ -261,11 +261,18 @@ function LevelEditor({ level, onChanged }: { level: TestLevel; onChanged: () => 
         {mode === "reasoning" && (
           <label className="flex items-center gap-2 text-xs">
             <span className="label-mono">AI question budget</span>
-            <input type="number" min={1} max={20} className={`${inputClass} w-20 py-1.5`} value={budget} onChange={(e) => setBudget(Number(e.target.value))} />
+            <input type="number" min={1} max={20} className={`${inputClass} w-20 py-1.5`} value={budget} onChange={(e) => void changeBudget(Number(e.target.value))} />
           </label>
         )}
-        <button onClick={saveLevel} className="ml-auto rounded-[10px] bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90">Save level</button>
+        <span className="ml-auto text-[11px] text-muted-foreground">Mode & budget auto-save</span>
         <button onClick={deleteLevel} className="rounded p-2 text-muted-foreground hover:text-danger"><Trash2 className="h-4 w-4" /></button>
+      </div>
+
+      <div className="rounded-[10px] border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
+        <strong className="text-foreground">Current mode:</strong>{" "}
+        {mode === "fixed" && "Pre-written questions only. No follow-ups, no AI."}
+        {mode === "clarifying" && "Pre-written questions + AI follow-ups (set Max follow-ups per question below)."}
+        {mode === "reasoning" && "AI generates every question from your objectives. Add at least one objective below."}
       </div>
 
       {(mode === "fixed" || mode === "clarifying") && (
