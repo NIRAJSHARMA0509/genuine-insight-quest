@@ -292,6 +292,7 @@ function InterviewRoom() {
   const startRecording = useCallback(() => {
     if (!streamRef.current || !currentQuestion) return;
     if (thinkTimerRef.current) { window.clearInterval(thinkTimerRef.current); thinkTimerRef.current = null; }
+    submittingRef.current = false;
     chunksRef.current = [];
     const mr = new MediaRecorder(streamRef.current, {
       mimeType: MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus") ? "video/webm;codecs=vp9,opus" : "video/webm",
