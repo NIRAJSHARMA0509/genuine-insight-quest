@@ -386,9 +386,15 @@ function InterviewRoom() {
     speak(nextQ.text, () => setPhase("ready"));
   }, [transcript, levels, levelIdx, qIdx, reasoningCount, followUpsAsked, computeNextQuestion, speak, closingText, resolvedClosing, sessionId, navigate, slug]);
 
+  const submittingRef = useRef(false);
   const submitAnswer = useCallback(() => {
+    if (submittingRef.current) return;
     const mr = recorderRef.current;
     if (!mr) return;
+    submittingRef.current = true;
+    // Immediate UI feedback so the user sees their click registered.
+    setPhase((p) => (p === "recording" ? "transitioning" : p));
+    if (timerRef.current) { window.clearInterval(timerRef.current); timerRef.current = null; }
     const duration_s = Math.round((Date.now() - recordStartRef.current) / 1000);
     const qText = currentQuestion?.text ?? "";
     const lvlId = levels[levelIdx]?.id ?? "";
