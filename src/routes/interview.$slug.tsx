@@ -292,6 +292,7 @@ function InterviewRoom() {
   const startRecording = useCallback(() => {
     if (!streamRef.current || !currentQuestion) return;
     if (thinkTimerRef.current) { window.clearInterval(thinkTimerRef.current); thinkTimerRef.current = null; }
+    submittingRef.current = false;
     chunksRef.current = [];
     const mr = new MediaRecorder(streamRef.current, {
       mimeType: MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus") ? "video/webm;codecs=vp9,opus" : "video/webm",
@@ -386,9 +387,15 @@ function InterviewRoom() {
     speak(nextQ.text, () => setPhase("ready"));
   }, [transcript, levels, levelIdx, qIdx, reasoningCount, followUpsAsked, computeNextQuestion, speak, closingText, resolvedClosing, sessionId, navigate, slug]);
 
+  const submittingRef = useRef(false);
   const submitAnswer = useCallback(() => {
+    if (submittingRef.current) return;
     const mr = recorderRef.current;
     if (!mr) return;
+    submittingRef.current = true;
+    // Immediate UI feedback so the user sees their click registered.
+    setPhase((p) => (p === "recording" ? "transitioning" : p));
+    if (timerRef.current) { window.clearInterval(timerRef.current); timerRef.current = null; }
     const duration_s = Math.round((Date.now() - recordStartRef.current) / 1000);
     const qText = currentQuestion?.text ?? "";
     const lvlId = levels[levelIdx]?.id ?? "";
@@ -725,14 +732,27 @@ function InterviewRoom() {
               )}
               {phase === "recording" && (
                 <>
-                  <button onClick={submitAnswer} className="inline-flex w-full max-w-sm items-center justify-center gap-2 rounded-[10px] bg-success px-6 py-4 text-sm font-medium text-background hover:opacity-90">
+                  <button onClick={submitAnswer} disabled={submittingRef.current} className="inline-flex w-full max-w-sm items-center justify-center gap-2 rounded-[10px] bg-success px-6 py-4 text-sm font-medium text-background hover:opacity-90 disabled:opacity-60">
                     <CheckCircle className="h-4 w-4" /> Submit answer
                   </button>
                   <p className="mt-2 text-xs text-muted-foreground">Once submitted, you cannot re-record this answer.</p>
                 </>
               )}
               {phase === "transitioning" && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Preparing next question…</div>
+                <div className="flex w-full max-w-sm flex-col items-center gap-3">
+                  <div className="flex items-center gap-1.5" aria-label="Alex is thinking">
+                    <motion.span className="h-2.5 w-2.5 rounded-full bg-primary" animate={{ y: [0, -6, 0], opacity: [0.4, 1, 0.4] }} transition={{ duration: 1, repeat: Infinity, ease: "easeInOut" }} />
+                    <motion.span className="h-2.5 w-2.5 rounded-full bg-primary" animate={{ y: [0, -6, 0], opacity: [0.4, 1, 0.4] }} transition={{ duration: 1, repeat: Infinity, ease: "easeInOut", delay: 0.15 }} />
+                    <motion.span className="h-2.5 w-2.5 rounded-full bg-primary" animate={{ y: [0, -6, 0], opacity: [0.4, 1, 0.4] }} transition={{ duration: 1, repeat: Infinity, ease: "easeInOut", delay: 0.3 }} />
+                  </div>
+                  <motion.p
+                    className="text-sm text-muted-foreground"
+                    animate={{ opacity: [0.5, 1, 0.5] }}
+                    transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+                  >
+                    Alex is reflecting on your answer…
+                  </motion.p>
+                </div>
               )}
               {phase === "feedback" && (
                 <>
