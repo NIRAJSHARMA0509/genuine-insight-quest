@@ -49,6 +49,33 @@ function normalizeSpokenText(input: string): string {
   // Bare £ → "pound"
   s = s.replace(/£/g, " pound ");
 
+  // Academic & common abbreviations that TTS otherwise pronounces as a word.
+  // Use word-boundary and case-insensitive matching for the degree variants.
+  const abbrev: Array<[RegExp, string]> = [
+    [/\bM\.?Sc\.?\b/gi, "Master of Science"],
+    [/\bB\.?Sc\.?\b/gi, "Bachelor of Science"],
+    [/\bM\.?A\b/g, "Master of Arts"],
+    [/\bB\.?A\b/g, "Bachelor of Arts"],
+    [/\bM\.?Eng\.?\b/gi, "Master of Engineering"],
+    [/\bB\.?Eng\.?\b/gi, "Bachelor of Engineering"],
+    [/\bM\.?Phil\.?\b/gi, "Master of Philosophy"],
+    [/\bPh\.?D\.?\b/gi, "P H D"],
+    [/\bM\.?B\.?A\.?\b/gi, "M B A"],
+    [/\bLL\.?B\.?\b/gi, "Bachelor of Laws"],
+    [/\bLL\.?M\.?\b/gi, "Master of Laws"],
+    [/\bUCAS\b/g, "U CAS"],
+    [/\bIELTS\b/g, "I E L T S"],
+    [/\bTOEFL\b/g, "TOEFL"],
+    [/\bUK\b/g, "U K"],
+    [/\bUS\b/g, "U S"],
+    [/\bEU\b/g, "E U"],
+    [/\bNHS\b/g, "N H S"],
+    [/\bAI\b/g, "A I"],
+    [/\bCS\b/g, "computer science"],
+    [/\bSTEM\b/g, "STEM"],
+  ];
+  for (const [re, repl] of abbrev) s = s.replace(re, repl);
+
   return s.replace(/\s{2,}/g, " ").trim().slice(0, 5000);
 }
 
