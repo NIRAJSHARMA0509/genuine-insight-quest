@@ -26,6 +26,7 @@ type Phase =
   | "notfound"
   | "permission"
   | "identity"
+  | "preparing"
   | "intro_playing"
   | "ready"
   | "recording"
@@ -535,47 +536,54 @@ function InterviewRoom() {
 
   const beginInterview = useCallback(async () => {
     if (!test || !org) return;
-    const { data, error } = await supabase.from("interview_sessions").insert({
-      test_id: test.id,
-      organisation_id: org.id,
-      student_name: identity.name,
-      student_email: identity.email,
-      student_reference: identity.reference,
-      started_at: new Date().toISOString(),
-      status: "in_progress",
-    }).select("id").single();
-    if (error) { toast.error(error.message); return; }
-    setSessionId(data.id);
-
-    // Resolve intro / closing — expand via AI if mode is 'prompt'
-    let introToSpeak = introText;
-    let closingToSpeak = closingText;
     try {
-      if (test.intro_mode === "prompt" && (test.intro_message ?? "").trim()) {
-        const r = await expandFn({ data: { kind: "intro", prompt: test.intro_message!, organisation_name: org.name, test_name: test.name } });
-        if (r.text) introToSpeak = r.text;
-      }
-      if (test.closing_mode === "prompt" && (test.closing_message ?? "").trim()) {
-        const r = await expandFn({ data: { kind: "closing", prompt: test.closing_message!, organisation_name: org.name, test_name: test.name } });
-        if (r.text) closingToSpeak = r.text;
-      }
-    } catch (e) {
-      console.error("expandMessage failed", e);
-    }
-    setResolvedClosing(closingToSpeak);
+      const { data, error } = await supabase.from("interview_sessions").insert({
+        test_id: test.id,
+        organisation_id: org.id,
+        student_name: identity.name,
+        student_email: identity.email,
+        student_reference: identity.reference,
+        started_at: new Date().toISOString(),
+        status: "in_progress",
+      }).select("id").single();
+      if (error) { toast.error(error.message); setPhase("identity"); return; }
+      setSessionId(data.id);
 
-    // Compute first question
-    const firstQ = await computeNextQuestion(0, 0, 0, [], 0, "");
-    if (!firstQ) {
-      toast.error("This test has no questions configured yet.");
-      return;
+      // Resolve intro / closing — expand via AI if mode is 'prompt'
+      let introToSpeak = introText;
+      let closingToSpeak = closingText;
+      try {
+        if (test.intro_mode === "prompt" && (test.intro_message ?? "").trim()) {
+          const r = await expandFn({ data: { kind: "intro", prompt: test.intro_message!, organisation_name: org.name, test_name: test.name } });
+          if (r.text) introToSpeak = r.text;
+        }
+        if (test.closing_mode === "prompt" && (test.closing_message ?? "").trim()) {
+          const r = await expandFn({ data: { kind: "closing", prompt: test.closing_message!, organisation_name: org.name, test_name: test.name } });
+          if (r.text) closingToSpeak = r.text;
+        }
+      } catch (e) {
+        console.error("expandMessage failed", e);
+      }
+      setResolvedClosing(closingToSpeak);
+
+      // Compute first question
+      const firstQ = await computeNextQuestion(0, 0, 0, [], 0, "");
+      if (!firstQ) {
+        toast.error("This test has no questions configured yet.");
+        setPhase("identity");
+        return;
+      }
+      setLevelIdx(0); setQIdx(firstQ.advanceQIdx ? 1 : 0); setReasoningCount(firstQ.rCountNext); setFollowUpsAsked(firstQ.followUpsNext);
+      setCurrentQuestion({ text: firstQ.text, think_s: firstQ.think_s, answer_s: firstQ.answer_s, question_id: firstQ.question_id, is_follow_up: firstQ.is_follow_up });
+      setPhase("intro_playing");
+      void speak(introToSpeak, () => {
+        void speak(firstQ.text, () => setPhase("ready"));
+      });
+    } catch (e) {
+      console.error("beginInterview failed", e);
+      toast.error("Something went wrong. Please try again.");
+      setPhase("identity");
     }
-    setLevelIdx(0); setQIdx(firstQ.advanceQIdx ? 1 : 0); setReasoningCount(firstQ.rCountNext); setFollowUpsAsked(firstQ.followUpsNext);
-    setCurrentQuestion({ text: firstQ.text, think_s: firstQ.think_s, answer_s: firstQ.answer_s, question_id: firstQ.question_id, is_follow_up: firstQ.is_follow_up });
-    setPhase("intro_playing");
-    void speak(introToSpeak, () => {
-      void speak(firstQ.text, () => setPhase("ready"));
-    });
   }, [test, org, identity, introText, closingText, computeNextQuestion, speak, expandFn]);
 
   /* ---------------- Cleanup ---------------- */
@@ -622,7 +630,7 @@ function InterviewRoom() {
       </FullCenter>
     );
   }
-  if (phase === "identity") {
+  if (phase === "identity" || phase === "preparing") {
     const ready = identity.name.trim() && identity.email.trim();
     return (
       <FullCenter>
@@ -631,13 +639,31 @@ function InterviewRoom() {
           <p className="label-mono mt-4 text-center">{org?.name}</p>
           <h1 className="mt-2 text-center text-2xl font-semibold tracking-tight">{test?.name}</h1>
           {test?.attempts_context_note && <p className="mt-3 text-center text-xs text-muted-foreground">{test.attempts_context_note}</p>}
-          <div className="mt-8 space-y-4">
-            <Input label="Full name" value={identity.name} onChange={(v) => setIdentity({ ...identity, name: v })} />
-            <Input label="Email" type="email" value={identity.email} onChange={(v) => setIdentity({ ...identity, email: v })} />
-            <Input label="Student ID or application reference" value={identity.reference} onChange={(v) => setIdentity({ ...identity, reference: v })} />
-          </div>
-          <button onClick={beginInterview} disabled={!ready} className="mt-8 w-full rounded-[10px] bg-primary px-5 py-3 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-40">Begin interview</button>
-          <p className="mt-4 text-center text-[11px] leading-relaxed text-muted-foreground">By starting, you agree that your camera, microphone and tab focus will be monitored throughout the interview.</p>
+          {phase === "preparing" ? (
+            <div className="mt-8 flex flex-col items-center gap-4">
+              <div className="grid h-14 w-14 place-items-center rounded-full bg-primary/15 text-primary">
+                <Loader2 className="h-6 w-6 animate-spin" />
+              </div>
+              <h2 className="text-xl font-semibold tracking-tight">Preparing your Interview Room</h2>
+              <p className="text-sm text-muted-foreground">This will only take a moment…</p>
+            </div>
+          ) : (
+            <>
+              <div className="mt-8 space-y-4">
+                <Input label="Full name" value={identity.name} onChange={(v) => setIdentity({ ...identity, name: v })} />
+                <Input label="Email" type="email" value={identity.email} onChange={(v) => setIdentity({ ...identity, email: v })} />
+                <Input label="Student ID or application reference" value={identity.reference} onChange={(v) => setIdentity({ ...identity, reference: v })} />
+              </div>
+              <button
+                onClick={() => { setPhase("preparing"); void beginInterview(); }}
+                disabled={!ready}
+                className="mt-8 w-full rounded-[10px] bg-primary px-5 py-3 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-40"
+              >
+                Begin interview
+              </button>
+              <p className="mt-4 text-center text-[11px] leading-relaxed text-muted-foreground">By starting, you agree that your camera, microphone and tab focus will be monitored throughout the interview.</p>
+            </>
+          )}
         </motion.div>
       </FullCenter>
     );
