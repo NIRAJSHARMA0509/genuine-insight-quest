@@ -1,123 +1,35 @@
+## Problem
 
-## Goal
-Replace the current single-table `universities` model with a proper **Organisation → Test → Level → Question/Objective** hierarchy, and add AI-generated reasoning + prep-mode feedback using Lovable AI (Gemini 2.5 Flash).
+ElevenLabs' `eleven_turbo_v2_5` (and most TTS models) often mispronounce the `£` symbol — it gets read as "L", skipped, or read as "dollars" depending on context. Since these demos are for UK universities, amounts like `£9,535`, `£20k`, or `50p` need to be spoken naturally as "nine thousand five hundred thirty-five pounds", "twenty thousand pounds", "fifty pence".
 
-Existing universities/sessions will be **wiped** (you confirmed fresh start).
+Right now `src/lib/tts.functions.ts` sends the raw `text` straight to ElevenLabs with no preprocessing, so any `£` in the AI-generated question, intro, or closing is at the mercy of the model.
 
----
+## Fix
 
-## 1. Data model (new tables)
+Add a small `normalizeSpokenText()` helper in `src/lib/tts.functions.ts` and run every input through it before the ElevenLabs call. Keep it scoped to currency/units — no other behavior changes, no UI changes, no changes to the question-generation prompts.
 
-```text
-organisations
-  ├── id, type ('university' | 'service_provider')
-  ├── name, logo_url, website_url, description
-  ├── custom_urls: jsonb [{ tag, url }]   ← free-form, optional
-  └── (university extras) programme_name, intake_year
-  └── (service_provider extras) nature_of_service
+### Transformations (in order)
 
-tests
-  ├── id, organisation_id, slug (public URL)
-  ├── name, purpose ('preparation' | 'assessment')
-  ├── max_attempts (int, default 1)
-  ├── attempts_context_note (auto-shown to candidate)
-  ├── intro_message, closing_message
-  ├── proctoring_enabled
-  └── status ('draft' | 'live' | 'paused')
+1. **Pounds with amount** — `£1,234.56` → `1,234.56 pounds`, `£20` → `20 pounds`, `£1.5m` / `£1.5M` → `1.5 million pounds`, `£20k` / `£20K` → `20 thousand pounds`, `£1.2bn` → `1.2 billion pounds`.
+2. **Bare £** (no number, e.g. "the £ is strong") → `the pound`.
+3. **Pence** — standalone `50p` (when not part of a word) → `50 pence`. Only match when preceded by a digit and followed by a non-letter, so words like "top" or "1080p" are left alone (require a leading space/start and a digit immediately before the `p`, e.g. `\b(\d+)p\b` with a guard against common false positives — keep the regex conservative).
+4. **GBP** — `GBP 500` or `500 GBP` → `500 pounds`.
+5. **Per-year shorthand** — `£30k/year` or `£30k pa` → `30 thousand pounds per year`.
 
-test_levels
-  ├── id, test_id, order_index, name
-  └── mode ('fixed' | 'clarifying' | 'reasoning')
+Apply the helper in `synthesizeAlexVoice` to `data.text` immediately before building the request body. Cap the resulting string at the existing 5000-char Zod limit (it can only get shorter or modestly longer; add a `.slice(0, 5000)` safety).
 
-questions
-  ├── id, level_id, order_index
-  ├── question_text
-  ├── think_time_seconds (default 30, 0 = instant record)
-  ├── answer_time_seconds (default 120)
-  ├── max_follow_ups (clarifying only)
-  └── ai_generated (bool — true for reasoning auto-gen)
+### Why server-side, not in the prompt
 
-question_rubrics            ← 1–10 example→score tiers per question
-  ├── id, question_id, order_index
-  ├── example_response (text)
-  └── score (int)
+- Prompt-only fixes ("spell out £") are unreliable — the model still slips.
+- All AI-generated text (`generateReasoningQuestion`, `generateClarifyingFollowUp`, `expandMessage`) funnels into the same `synthesizeAlexVoice` call, so one normalization point covers every voice surface.
+- Cheap, deterministic, no extra latency, no API cost.
 
-objectives                  ← per level (reasoning mode) or per test
-  ├── id, level_id, order_index
-  ├── title, description, weight
+### Files touched
 
-objective_criteria          ← 1–10 "what I'm seeking" rows per objective
-  ├── id, objective_id, order_index
-  ├── criterion (text)
-  └── score (int)
+- `src/lib/tts.functions.ts` — add `normalizeSpokenText()` and call it once inside the handler. No signature change, no client-side change, no other files touched.
 
-interview_sessions          (recreated)
-  ├── + test_id, level_id, attempt_number
-  ├── + previous_attempts_summary jsonb (for cross-attempt context)
-  └── existing transcript/score/proctoring fields
-```
+### Out of scope
 
-All tables get permissive RLS to match current public-config pattern (admin auth is a later milestone you flagged).
-
-## 2. Configuration UI flow
-
-`/configure` becomes a list of **Organisations** with a "Configure new organisation" CTA. The wizard:
-
-1. **Choose type** — University vs Service Provider (locked once chosen)
-2. **Org details** — name, logo upload, website, description, custom URLs (Add row: tag + URL), plus type-specific fields. Logo upload uses existing `university-logos` bucket (renamed in UI to "Organisation logos").
-3. **Tests list** under the org — "Create test"
-4. **Test setup** — purpose (prep/assessment), max attempts, intro/closing, proctoring toggle
-5. **Levels** — add 1..N levels; each level picks a **mode** (fixed / clarifying / reasoning)
-6. **Per level**:
-   - Fixed / Clarifying: add questions; each question → think_time, answer_time, and **1–10 rubric tiers** (example response + score)
-   - Reasoning: add **objectives** (title + description + weight) with **1–10 criteria** (criterion + score); optional seed question count for AI to auto-generate at runtime
-7. **Publish** → generates `/t/<org-slug>/<test-slug>` URL
-
-## 3. Runtime (interview page)
-
-- New route `/t/$orgSlug/$testSlug` (the current `/interview/$slug` stays as a redirect shim).
-- Pulls test → levels → questions/objectives, walks levels in order.
-- Per question:
-  - Shows think-time countdown (highlighted, current behaviour).
-  - If `think_time_seconds === 0` → instant recording.
-  - After answer submit, if test purpose is **preparation** → calls a new server fn `generatePrepFeedback` (Gemini 2.5 Flash) that returns 2–4 sentence coaching feedback against the rubric/objectives and shows it before the next question.
-- Reasoning levels: server fn `generateReasoningQuestion` builds the next question from the objectives + prior answers + previous attempts summary. Limited by an `ai_question_budget` on the level (default 5).
-- On session complete, store transcript + rubric-based score report. Past attempts summary is fed to the next attempt's context.
-
-## 4. AI server functions (Lovable AI Gateway, Gemini 2.5 Flash)
-
-`src/lib/ai.functions.ts` exposes:
-- `generateReasoningQuestion({ levelId, transcript, attemptHistory })` → `{ question_text }`
-- `generatePrepFeedback({ questionId, answerTranscript })` → `{ feedback, suggested_score }`
-- `scoreTranscript({ sessionId })` → uses rubrics + criteria to produce structured score per question/objective
-
-All use `@ai-sdk/openai-compatible` + `createLovableAiGatewayProvider` with `LOVABLE_API_KEY` (already present in secrets) and `Output.object` for structured JSON.
-
-## 5. ElevenLabs voice — keep as-is
-
-No changes to `tts.functions.ts`. The new intro/closing/prep feedback all route through the same `synthesizeAlexVoice` path so the cloned voice plays everywhere.
-
-## 6. Migration
-
-- `DROP TABLE interview_sessions, universities CASCADE;`
-- Create the new schema above with RLS + `updated_at` triggers reusing `set_updated_at()`.
-- No data preserved.
-
-## 7. Out of scope for this turn
-
-- Admin auth / per-user permissions
-- Candidate-side re-attempt enforcement UI (config stored + note shown, but enforcement is a follow-up)
-- Detailed prep-mode "improve and retry this answer" loop (only post-answer feedback for now)
-- Score report rendering improvements (basic JSON list of scores per question)
-
-## 8. Build order
-
-1. SQL migration (drop + recreate schema)
-2. Types in `src/lib/types.ts`
-3. New `/configure` UI (org list + wizard) — replaces existing configure page
-4. New `/t/$org/$test` runtime route — replaces interview slug route
-5. `ai.functions.ts` with the 3 server fns
-6. Wire prep feedback + reasoning generation into the runtime
-7. Smoke-test by configuring one university with a reasoning level and 3 objectives
-
-This is roughly **8–10 file edits + 1 migration**. Once you approve, I'll start with the migration so it can be reviewed first.
+- Other currencies ($ / €) — can add later if needed.
+- Changing voice settings, model, or accent.
+- Modifying the AI prompts themselves.
