@@ -26,6 +26,7 @@ type Phase =
   | "notfound"
   | "permission"
   | "identity"
+  | "preparing"
   | "intro_playing"
   | "ready"
   | "recording"
