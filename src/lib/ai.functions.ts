@@ -181,7 +181,12 @@ Rules:
 - Build on what the candidate has already said — reference their previous answer naturally if relevant.
 - Do not repeat earlier questions.
 - Avoid yes/no questions; aim for reasoning depth.
-- If this is question 1, open with something inviting that targets the highest-weight objective.`,
+- If this is question 1, you may open with one short inviting line that targets the highest-weight objective.
+- If this is question 2 or later, DO NOT greet, welcome, or use opener phrases like "Welcome", "To start", "Let's begin", "Hi", "Hello", "Great", "Thanks for that", "Now". The interview is already in progress — go straight into the next question.
+
+RELEVANCE / SERIOUSNESS CHECK (highest priority — overrides the rules above):
+If the candidate's most recent answer in the transcript is clearly off-topic, frivolous, joking, nonsensical, hostile, or shows they are not engaging seriously (e.g. answering a substantive question with "because it's hot outside"), DO NOT proceed to the next question. Instead output a single firm, polite warning in this shape, adapted to context:
+"That response doesn't appear to be a serious answer to the question. Please remember this interview is reviewed by the admissions compliance team — repeated irrelevant or non-serious responses may result in your application being withdrawn. Let's try again: <restate the previous question in your own words>."`,
       },
       {
         role: "user",
