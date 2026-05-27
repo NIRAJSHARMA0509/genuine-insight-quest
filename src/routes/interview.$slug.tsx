@@ -630,7 +630,7 @@ function InterviewRoom() {
       </FullCenter>
     );
   }
-  if (phase === "identity") {
+  if (phase === "identity" || phase === "preparing") {
     const ready = identity.name.trim() && identity.email.trim();
     return (
       <FullCenter>
@@ -639,13 +639,31 @@ function InterviewRoom() {
           <p className="label-mono mt-4 text-center">{org?.name}</p>
           <h1 className="mt-2 text-center text-2xl font-semibold tracking-tight">{test?.name}</h1>
           {test?.attempts_context_note && <p className="mt-3 text-center text-xs text-muted-foreground">{test.attempts_context_note}</p>}
-          <div className="mt-8 space-y-4">
-            <Input label="Full name" value={identity.name} onChange={(v) => setIdentity({ ...identity, name: v })} />
-            <Input label="Email" type="email" value={identity.email} onChange={(v) => setIdentity({ ...identity, email: v })} />
-            <Input label="Student ID or application reference" value={identity.reference} onChange={(v) => setIdentity({ ...identity, reference: v })} />
-          </div>
-          <button onClick={beginInterview} disabled={!ready} className="mt-8 w-full rounded-[10px] bg-primary px-5 py-3 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-40">Begin interview</button>
-          <p className="mt-4 text-center text-[11px] leading-relaxed text-muted-foreground">By starting, you agree that your camera, microphone and tab focus will be monitored throughout the interview.</p>
+          {phase === "preparing" ? (
+            <div className="mt-8 flex flex-col items-center gap-4">
+              <div className="grid h-14 w-14 place-items-center rounded-full bg-primary/15 text-primary">
+                <Loader2 className="h-6 w-6 animate-spin" />
+              </div>
+              <h2 className="text-xl font-semibold tracking-tight">Preparing your Interview Room</h2>
+              <p className="text-sm text-muted-foreground">This will only take a moment…</p>
+            </div>
+          ) : (
+            <>
+              <div className="mt-8 space-y-4">
+                <Input label="Full name" value={identity.name} onChange={(v) => setIdentity({ ...identity, name: v })} />
+                <Input label="Email" type="email" value={identity.email} onChange={(v) => setIdentity({ ...identity, email: v })} />
+                <Input label="Student ID or application reference" value={identity.reference} onChange={(v) => setIdentity({ ...identity, reference: v })} />
+              </div>
+              <button
+                onClick={() => { setPhase("preparing"); void beginInterview(); }}
+                disabled={!ready}
+                className="mt-8 w-full rounded-[10px] bg-primary px-5 py-3 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-40"
+              >
+                Begin interview
+              </button>
+              <p className="mt-4 text-center text-[11px] leading-relaxed text-muted-foreground">By starting, you agree that your camera, microphone and tab focus will be monitored throughout the interview.</p>
+            </>
+          )}
         </motion.div>
       </FullCenter>
     );
