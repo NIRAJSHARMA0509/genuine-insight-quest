@@ -794,6 +794,69 @@ function Timer({ s }: { s: number }) {
   return <span className={`font-mono text-lg tabular-nums ${colour} ${s <= 30 ? "animate-pulse" : ""}`}>{mm}:{ss}</span>;
 }
 
+function ProcessingSteps() {
+  const steps = [
+    "Processing your response",
+    "Updating the record",
+    "Alex is preparing the next question",
+  ];
+  // Auto-advance: step 0 -> 1 at 700ms, 1 -> 2 at 1600ms. Last step stays "in progress" until phase changes.
+  const [active, setActive] = useState(0);
+  useEffect(() => {
+    const t1 = setTimeout(() => setActive(1), 700);
+    const t2 = setTimeout(() => setActive(2), 1600);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, []);
+  return (
+    <div className="flex w-full max-w-sm flex-col gap-2.5" aria-live="polite">
+      {steps.map((label, i) => {
+        const done = i < active;
+        const current = i === active;
+        return (
+          <motion.div
+            key={label}
+            initial={{ opacity: 0, x: -6 }}
+            animate={{ opacity: done || current ? 1 : 0.4, x: 0 }}
+            transition={{ duration: 0.25 }}
+            className="flex items-center gap-3 rounded-[10px] border border-border bg-elevated/40 px-3 py-2.5"
+          >
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center">
+              {done ? (
+                <motion.span
+                  initial={{ scale: 0.6, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                >
+                  <CheckCircle className="h-5 w-5 text-success" />
+                </motion.span>
+              ) : current ? (
+                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+              ) : (
+                <span className="h-2 w-2 rounded-full bg-muted-foreground/40" />
+              )}
+            </span>
+            <span className={`text-sm ${done ? "text-foreground" : current ? "text-foreground" : "text-muted-foreground"}`}>
+              {label}
+              {current && <AnimatedDots />}
+            </span>
+          </motion.div>
+        );
+      })}
+    </div>
+  );
+}
+
+function AnimatedDots() {
+  return (
+    <motion.span
+      className="ml-0.5 inline-block"
+      animate={{ opacity: [0.3, 1, 0.3] }}
+      transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
+    >…</motion.span>
+  );
+}
+
+
 function FullCenter({ children }: { children: React.ReactNode }) {
   return <div className="flex min-h-screen items-center justify-center px-4">{children}</div>;
 }
