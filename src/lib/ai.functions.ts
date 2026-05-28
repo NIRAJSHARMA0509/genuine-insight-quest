@@ -185,7 +185,8 @@ ${objBlock}
 Produce the next clarifying follow-up now.`,
       },
     ];
-    const text = (await callGateway(messages)).trim().replace(/^["']|["']$/g, "");
+    const text = sanitizeQuestionOutput(await callGateway(messages));
+
     return { question_text: text };
   });
 
