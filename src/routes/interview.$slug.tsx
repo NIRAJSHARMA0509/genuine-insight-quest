@@ -765,21 +765,9 @@ function InterviewRoom() {
                 </>
               )}
               {phase === "transitioning" && (
-                <div className="flex w-full max-w-sm flex-col items-center gap-3">
-                  <div className="flex items-center gap-1.5" aria-label="Alex is thinking">
-                    <motion.span className="h-2.5 w-2.5 rounded-full bg-primary" animate={{ y: [0, -6, 0], opacity: [0.4, 1, 0.4] }} transition={{ duration: 1, repeat: Infinity, ease: "easeInOut" }} />
-                    <motion.span className="h-2.5 w-2.5 rounded-full bg-primary" animate={{ y: [0, -6, 0], opacity: [0.4, 1, 0.4] }} transition={{ duration: 1, repeat: Infinity, ease: "easeInOut", delay: 0.15 }} />
-                    <motion.span className="h-2.5 w-2.5 rounded-full bg-primary" animate={{ y: [0, -6, 0], opacity: [0.4, 1, 0.4] }} transition={{ duration: 1, repeat: Infinity, ease: "easeInOut", delay: 0.3 }} />
-                  </div>
-                  <motion.p
-                    className="text-sm text-muted-foreground"
-                    animate={{ opacity: [0.5, 1, 0.5] }}
-                    transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
-                  >
-                    Alex is reflecting on your answer…
-                  </motion.p>
-                </div>
+                <ProcessingSteps />
               )}
+
               {phase === "feedback" && (
                 <>
                   {!prepFeedback ? (
