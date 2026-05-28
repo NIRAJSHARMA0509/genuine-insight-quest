@@ -34,6 +34,47 @@ async function callGateway(messages: GatewayMessage[], expectJson = false): Prom
   return data?.choices?.[0]?.message?.content ?? "";
 }
 
+/**
+ * Strip any leaked internal reasoning, tier labels, classifications, or meta-instructions
+ * from a model output that should only contain the spoken question/turn.
+ * The model occasionally echoes the system-prompt scaffolding (e.g. "TIER A — ...",
+ * "→ Ask the normal next question", "Classification:") — those must never reach TTS.
+ */
+function sanitizeQuestionOutput(raw: string): string {
+  let text = (raw ?? "").trim().replace(/^["']|["']$/g, "");
+
+  // Drop lines that look like internal scaffolding.
+  const lines = text.split(/\r?\n/);
+  const cleaned: string[] = [];
+  for (const ln of lines) {
+    const t = ln.trim();
+    if (!t) { cleaned.push(ln); continue; }
+    if (/^tier\s*[abc]\b/i.test(t)) continue;
+    if (/^(classification|reasoning|analysis|thought|note|internal)\s*[:\-]/i.test(t)) continue;
+    if (/^→/.test(t)) continue;
+    if (/^(default style rules|before writing|output format)\b/i.test(t)) continue;
+    cleaned.push(ln);
+  }
+  text = cleaned.join("\n").trim();
+
+  // If a tier label appears mid-string, cut everything from it onward and keep what came before;
+  // if it appears at the very start, drop up to the next sentence.
+  const tierMatch = text.match(/\btier\s*[abc]\b[^.?!]*[.?!]?/i);
+  if (tierMatch && typeof tierMatch.index === "number") {
+    if (tierMatch.index === 0) {
+      text = text.slice(tierMatch[0].length).trim();
+    } else {
+      text = text.slice(0, tierMatch.index).trim();
+    }
+  }
+
+  // Strip leading arrow/bullet markers.
+  text = text.replace(/^([→\-*•]\s*)+/, "").trim();
+
+  return text;
+}
+
+
 /* ---------- Audio transcription (server-side fallback) ---------- */
 
 export const transcribeAudio = createServerFn({ method: "POST" })
