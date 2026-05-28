@@ -173,6 +173,18 @@ export const generateReasoningQuestion = createServerFn({ method: "POST" })
         .map((c) => `   - "${c.criterion}" → score ${c.score}`)
         .join("\n");
       return `${i + 1}. ${o.title}${o.description ? ` — ${o.description}` : ""}${criteria ? `\n${criteria}` : ""}`;
+    }).join("\n\n");
+
+    const transcriptBlock = data.previous_transcript.length
+      ? data.previous_transcript
+          .map((t, i) => `Q${i + 1}: ${t.question}\nA${i + 1}: ${t.answer ?? "(no transcribed answer)"}`)
+          .join("\n\n")
+      : "(no prior questions yet)";
+
+    const messages: GatewayMessage[] = [
+      {
+        role: "system",
+        content:
 `You are Alex, a warm but rigorous and discerning admissions interviewer. Your job is to produce ONE next turn that probes the candidate against the stated objectives.
 
 Default style rules:
@@ -200,18 +212,6 @@ TIER C — Non-serious / off-topic / hostile / nonsensical (e.g. answering a sub
 
 When unsure between B and A, prefer B — a rigorous interviewer challenges weak reasoning rather than rewarding it. When unsure between B and C, prefer B unless the answer is clearly not engaging with the question at all.`,
 
-Rules:
-- Output exactly one question, written in plain conversational English (no preamble, no numbering, no quotes).
-- Keep it under 45 words.
-- Build on what the candidate has already said — reference their previous answer naturally if relevant.
-- Do not repeat earlier questions.
-- Avoid yes/no questions; aim for reasoning depth.
-- If this is question 1, you may open with one short inviting line that targets the highest-weight objective.
-- If this is question 2 or later, DO NOT greet, welcome, or use opener phrases like "Welcome", "To start", "Let's begin", "Hi", "Hello", "Great", "Thanks for that", "Now". The interview is already in progress — go straight into the next question.
-
-RELEVANCE / SERIOUSNESS CHECK (highest priority — overrides the rules above):
-If the candidate's most recent answer in the transcript is clearly off-topic, frivolous, joking, nonsensical, hostile, or shows they are not engaging seriously (e.g. answering a substantive question with "because it's hot outside"), DO NOT proceed to the next question. Instead output a single firm, polite warning in this shape, adapted to context:
-"That response doesn't appear to be a serious answer to the question. Please remember this interview is reviewed by the admissions compliance team — repeated irrelevant or non-serious responses may result in your application being withdrawn. Let's try again: <restate the previous question in your own words>."`,
       },
       {
         role: "user",
