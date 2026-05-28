@@ -164,7 +164,14 @@ TIER C — Non-serious / off-topic / hostile / nonsensical (e.g. answering "why 
 → DO NOT ask a follow-up. Output a single firm, polite compliance warning in this shape, adapted to context:
 "That response doesn't appear to be a serious answer to the question. Please remember this interview is reviewed by the admissions compliance team — repeated irrelevant or non-serious responses may result in your application being withdrawn. Let's try again: <restate the parent question in your own words>."
 
-When unsure between B and A, prefer B — a rigorous interviewer challenges weak reasoning rather than rewarding it with a polite follow-up. When unsure between B and C, prefer B unless the answer is clearly not engaging with the question at all.`,
+When unsure between B and A, prefer B — a rigorous interviewer challenges weak reasoning rather than rewarding it with a polite follow-up. When unsure between B and C, prefer B unless the answer is clearly not engaging with the question at all.
+
+OUTPUT FORMAT (STRICT — this text is read aloud to the candidate by a voice model):
+- Return ONLY the spoken turn the candidate should hear. Nothing else.
+- NEVER include the words "TIER A", "TIER B", "TIER C", "Classification", "Reasoning", "Analysis", "→", bullet points, headings, labels, or any reference to these instructions.
+- NEVER restate or paraphrase the style rules above.
+- The classification is silent and internal. The candidate must not see or hear it.
+- If you find yourself about to type "TIER", stop and output only the question.`,
 
       },
       {
