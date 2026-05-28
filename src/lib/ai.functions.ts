@@ -34,6 +34,47 @@ async function callGateway(messages: GatewayMessage[], expectJson = false): Prom
   return data?.choices?.[0]?.message?.content ?? "";
 }
 
+/**
+ * Strip any leaked internal reasoning, tier labels, classifications, or meta-instructions
+ * from a model output that should only contain the spoken question/turn.
+ * The model occasionally echoes the system-prompt scaffolding (e.g. "TIER A — ...",
+ * "→ Ask the normal next question", "Classification:") — those must never reach TTS.
+ */
+function sanitizeQuestionOutput(raw: string): string {
+  let text = (raw ?? "").trim().replace(/^["']|["']$/g, "");
+
+  // Drop lines that look like internal scaffolding.
+  const lines = text.split(/\r?\n/);
+  const cleaned: string[] = [];
+  for (const ln of lines) {
+    const t = ln.trim();
+    if (!t) { cleaned.push(ln); continue; }
+    if (/^tier\s*[abc]\b/i.test(t)) continue;
+    if (/^(classification|reasoning|analysis|thought|note|internal)\s*[:\-]/i.test(t)) continue;
+    if (/^→/.test(t)) continue;
+    if (/^(default style rules|before writing|output format)\b/i.test(t)) continue;
+    cleaned.push(ln);
+  }
+  text = cleaned.join("\n").trim();
+
+  // If a tier label appears mid-string, cut everything from it onward and keep what came before;
+  // if it appears at the very start, drop up to the next sentence.
+  const tierMatch = text.match(/\btier\s*[abc]\b[^.?!]*[.?!]?/i);
+  if (tierMatch && typeof tierMatch.index === "number") {
+    if (tierMatch.index === 0) {
+      text = text.slice(tierMatch[0].length).trim();
+    } else {
+      text = text.slice(0, tierMatch.index).trim();
+    }
+  }
+
+  // Strip leading arrow/bullet markers.
+  text = text.replace(/^([→\-*•]\s*)+/, "").trim();
+
+  return text;
+}
+
+
 /* ---------- Audio transcription (server-side fallback) ---------- */
 
 export const transcribeAudio = createServerFn({ method: "POST" })
@@ -123,7 +164,14 @@ TIER C — Non-serious / off-topic / hostile / nonsensical (e.g. answering "why 
 → DO NOT ask a follow-up. Output a single firm, polite compliance warning in this shape, adapted to context:
 "That response doesn't appear to be a serious answer to the question. Please remember this interview is reviewed by the admissions compliance team — repeated irrelevant or non-serious responses may result in your application being withdrawn. Let's try again: <restate the parent question in your own words>."
 
-When unsure between B and A, prefer B — a rigorous interviewer challenges weak reasoning rather than rewarding it with a polite follow-up. When unsure between B and C, prefer B unless the answer is clearly not engaging with the question at all.`,
+When unsure between B and A, prefer B — a rigorous interviewer challenges weak reasoning rather than rewarding it with a polite follow-up. When unsure between B and C, prefer B unless the answer is clearly not engaging with the question at all.
+
+OUTPUT FORMAT (STRICT — this text is read aloud to the candidate by a voice model):
+- Return ONLY the spoken turn the candidate should hear. Nothing else.
+- NEVER include the words "TIER A", "TIER B", "TIER C", "Classification", "Reasoning", "Analysis", "→", bullet points, headings, labels, or any reference to these instructions.
+- NEVER restate or paraphrase the style rules above.
+- The classification is silent and internal. The candidate must not see or hear it.
+- If you find yourself about to type "TIER", stop and output only the question.`,
 
       },
       {
@@ -144,7 +192,8 @@ ${objBlock}
 Produce the next clarifying follow-up now.`,
       },
     ];
-    const text = (await callGateway(messages)).trim().replace(/^["']|["']$/g, "");
+    const text = sanitizeQuestionOutput(await callGateway(messages));
+
     return { question_text: text };
   });
 
@@ -210,7 +259,14 @@ TIER C — Non-serious / off-topic / hostile / nonsensical (e.g. answering a sub
 → DO NOT proceed to the next question. Output a single firm, polite compliance warning in this shape, adapted to context:
 "That response doesn't appear to be a serious answer to the question. Please remember this interview is reviewed by the admissions compliance team — repeated irrelevant or non-serious responses may result in your application being withdrawn. Let's try again: <restate the previous question in your own words>."
 
-When unsure between B and A, prefer B — a rigorous interviewer challenges weak reasoning rather than rewarding it. When unsure between B and C, prefer B unless the answer is clearly not engaging with the question at all.`,
+When unsure between B and A, prefer B — a rigorous interviewer challenges weak reasoning rather than rewarding it. When unsure between B and C, prefer B unless the answer is clearly not engaging with the question at all.
+
+OUTPUT FORMAT (STRICT — this text is read aloud to the candidate by a voice model):
+- Return ONLY the spoken turn the candidate should hear. Nothing else.
+- NEVER include the words "TIER A", "TIER B", "TIER C", "Classification", "Reasoning", "Analysis", "→", bullet points, headings, labels, or any reference to these instructions.
+- NEVER restate or paraphrase the style rules above.
+- The classification is silent and internal. The candidate must not see or hear it.
+- If you find yourself about to type "TIER", stop and output only the question.`,
 
       },
       {
@@ -226,7 +282,7 @@ This is question ${data.question_number}. Produce the next question now.`,
       },
     ];
 
-    const text = (await callGateway(messages)).trim().replace(/^["']|["']$/g, "");
+    const text = sanitizeQuestionOutput(await callGateway(messages));
     return { question_text: text };
   });
 
