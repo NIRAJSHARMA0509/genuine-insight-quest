@@ -268,7 +268,7 @@ This is question ${data.question_number}. Produce the next question now.`,
       },
     ];
 
-    const text = (await callGateway(messages)).trim().replace(/^["']|["']$/g, "");
+    const text = sanitizeQuestionOutput(await callGateway(messages));
     return { question_text: text };
   });
 
