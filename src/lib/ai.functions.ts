@@ -225,6 +225,11 @@ Produce the next clarifying follow-up now.`,
 export const generateReasoningQuestion = createServerFn({ method: "POST" })
   .inputValidator(
     z.object({
+      primary_objective: z.object({
+        title: z.string(),
+        description: z.string().nullable().optional(),
+        criteria: z.array(z.object({ criterion: z.string(), score: z.number() })).optional(),
+      }).optional(),
       objectives: z.array(
         z.object({
           title: z.string(),
@@ -241,6 +246,11 @@ export const generateReasoningQuestion = createServerFn({ method: "POST" })
     }).parse,
   )
   .handler(async ({ data }) => {
+    const primaryObjectiveBlock = data.primary_objective
+      ? `${data.primary_objective.title}${data.primary_objective.description ? ` — ${data.primary_objective.description}` : ""}${(data.primary_objective.criteria ?? []).length
+        ? `\n${(data.primary_objective.criteria ?? []).map((c) => `   - "${c.criterion}" → score ${c.score}`).join("\n")}`
+        : ""}`
+      : "(not specified)";
     const objectivesBlock = data.objectives.map((o, i) => {
       const criteria = (o.criteria ?? [])
         .map((c) => `   - "${c.criterion}" → score ${c.score}`)
@@ -261,9 +271,11 @@ export const generateReasoningQuestion = createServerFn({ method: "POST" })
 `You are Alex, a warm but rigorous admissions interviewer conducting a UNIVERSITY ACADEMIC INTERVIEW (undergraduate or postgraduate admission). Your job is to produce ONE next turn that probes the candidate against the stated objectives, in the voice of a real, experienced human interviewer.
 
 INTERVIEWER CRAFT (apply silently before writing):
-1. Re-read the transcript. Note what's been COVERED already, what's been CLAIMED but not evidenced, and what objectives are still UNTOUCHED or weakly covered. Do not re-ask anything they've effectively answered.
-2. Pick the single highest-value next probe — the one a senior admissions tutor would naturally ask next. Priority order: (a) close a gap on an under-covered objective with highest weight/criteria score, (b) test a claim they made with a specific example/evidence question, (c) connect two things they've said to push reasoning depth, (d) open the next objective.
-3. Anchor the question to something concrete from earlier turns when possible — a named course, project, role, place, or claim. A short echo of their own words ("You mentioned X — ...") signals real listening.
+1. You are now asking a REASONING / OBJECTIVE-DRIVEN question. The next question MUST primarily assess the PRIMARY OBJECTIVE provided below. Treat that as the main target for this turn, not the last fixed question.
+2. Re-read the transcript. Note what's been COVERED already, what's been CLAIMED but not evidenced, and what parts of the PRIMARY OBJECTIVE are still UNTOUCHED or weakly covered. Do not re-ask anything they've effectively answered.
+3. Pick the single highest-value next probe a senior admissions tutor would naturally ask to assess the PRIMARY OBJECTIVE. Use earlier answers only when they genuinely help you test that objective.
+4. If the last answer came from a previous section and does NOT directly help with the PRIMARY OBJECTIVE, pivot cleanly and naturally into the new topic. Do not continue the previous thread just because it was the most recent answer.
+5. Anchor the question to something concrete from earlier turns when possible — but only if that concrete detail helps you probe the PRIMARY OBJECTIVE. A short echo of their own words ("You mentioned X — ...") signals real listening.
 4. Sound like a person, not a checklist. No template phrasing ("Moving on to..."), no meta talk ("the next objective is..."), no flattery.
 5. One clean question. No stacked "and also" clauses. No yes/no questions. Open how/what/which/why anchored to a specific.
 
@@ -281,7 +293,7 @@ TIER R — Rephrase / clarification request. The candidate asks you to repeat, r
 → Just rephrase the PREVIOUS question in different, simpler, more concrete words — ideally with a small example or clearer angle. Do not advance, do not add a new probe. Prefix your output with the exact token "[REPHRASE] " (including the space) so the system knows not to count this as a follow-up. Use genuinely different wording, not the original sentence.
 
 TIER A — Substantive answer. ANY on-topic, coherent academic, career, financial, or personal reason counts here, including straightforward continuity reasons like "I finished my bachelor's in CS and want to deepen my expertise", "I want better career prospects", "I'm interested in AI research", career switches, family context, or any genuine motivation a real student would give. These are LEGITIMATE answers in an academic interview.
-→ Ask the smartest next question per INTERVIEWER CRAFT above — anchored to something concrete they said, moving the interview forward toward the highest-value uncovered objective.
+→ Ask the smartest next question per INTERVIEWER CRAFT above — moving the interview forward toward the PRIMARY OBJECTIVE for this turn. Do not keep drilling the previous fixed-question theme unless it clearly helps assess that objective.
 
 TIER B — Genuinely disproportionate / lifestyle-only / non-academic reason with NO academic, career, intellectual, or personal-development substance at all (e.g. "I like the supermarkets", "the campus looks nice", "my friend is here"). The bar is high: only use this tier when a reasonable admissions tutor would genuinely raise an eyebrow. Normal academic reasons, even brief ones, are TIER A.
 → Briefly and warmly name the mismatch, then invite the real underlying reason. One short sentence + one short question. Never sarcastic.
@@ -303,7 +315,10 @@ OUTPUT FORMAT (STRICT — this text is read aloud to the candidate by a voice mo
       {
         role: "user",
         content:
-`Objectives:
+`Primary objective for THIS turn (must be the main focus of your next question):
+${primaryObjectiveBlock}
+
+All objectives in this reasoning level:
 ${objectivesBlock}
 
 ${data.previous_attempts_summary ? `Notes from candidate's previous attempt(s):\n${data.previous_attempts_summary}\n\n` : ""}Transcript so far:

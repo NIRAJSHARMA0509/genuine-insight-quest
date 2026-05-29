@@ -268,8 +268,20 @@ function InterviewRoom() {
       const budget = Math.max(declaredBudget, objs.length);
       if (rCount >= budget) return null;
       try {
+        const sortedObjectives = [...objs].sort((a, b) => {
+          if ((b.weight ?? 0) !== (a.weight ?? 0)) return (b.weight ?? 0) - (a.weight ?? 0);
+          return a.order_index - b.order_index;
+        });
+        const primaryObjective = sortedObjectives[Math.min(rCount, sortedObjectives.length - 1)] ?? sortedObjectives[0];
         const result = await reasoningFn({
           data: {
+            primary_objective: primaryObjective
+              ? {
+                  title: primaryObjective.title,
+                  description: primaryObjective.description ?? undefined,
+                  criteria: (primaryObjective.criteria ?? []).map((c) => ({ criterion: c.criterion, score: c.score })),
+                }
+              : undefined,
             objectives: objs.map((o) => ({
               title: o.title,
               description: o.description ?? undefined,
