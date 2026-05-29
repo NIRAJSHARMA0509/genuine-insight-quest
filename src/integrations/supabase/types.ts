@@ -28,6 +28,7 @@ export type Database = {
           started_at: string | null
           status: string
           student_email: string | null
+          student_feedback: Json | null
           student_name: string | null
           student_reference: string | null
           test_id: string | null
@@ -45,6 +46,7 @@ export type Database = {
           started_at?: string | null
           status?: string
           student_email?: string | null
+          student_feedback?: Json | null
           student_name?: string | null
           student_reference?: string | null
           test_id?: string | null
@@ -62,6 +64,7 @@ export type Database = {
           started_at?: string | null
           status?: string
           student_email?: string | null
+          student_feedback?: Json | null
           student_name?: string | null
           student_reference?: string | null
           test_id?: string | null
