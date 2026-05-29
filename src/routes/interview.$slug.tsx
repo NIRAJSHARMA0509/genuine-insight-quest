@@ -729,18 +729,34 @@ function InterviewRoom() {
               ) : phase === "closing" ? (
                 <motion.div key="closing" initial={{ opacity: 0, filter: "blur(4px)" }} animate={{ opacity: 1, filter: "blur(0px)" }} transition={{ duration: 0.4 }}>
                   <p className="label-mono text-success">Closing</p>
-                  <p className="mt-3 text-lg leading-relaxed">
-                    {closingDone
-                      ? "Alex has finished the closing message. When you're ready, finish and submit your interview for review."
-                      : "Thank you. Alex is delivering the closing message…"}
-                  </p>
                   {closingDone && (
                     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="mt-6">
                       <Button
                         size="lg"
-                        onClick={() => navigate({ to: "/interview/$slug/complete", params: { slug } })}
+                        onClick={() => {
+                          // Tear down media/audio before route change so cleanup can't race the navigation.
+                          try { audioRef.current?.pause(); } catch { /* noop */ }
+                          try { streamRef.current?.getTracks().forEach((t) => t.stop()); } catch { /* noop */ }
+                          try {
+                            navigate({ to: "/interview/$slug/complete", params: { slug } });
+                          } catch {
+                            window.location.assign(`/interview/${slug}/complete`);
+                          }
+                          // Hard fallback: if router navigation hasn't taken effect in 600ms, force it.
+                          window.setTimeout(() => {
+                            if (window.location.pathname.indexOf("/complete") === -1) {
+                              window.location.assign(`/interview/${slug}/complete`);
+                            }
+                          }, 600);
+                        }}
                         className="bg-success text-success-foreground hover:bg-success/90"
                       >
+                        Finish & Submit for Review
+                      </Button>
+                      <p className="mt-3 text-xs text-muted-foreground">Your responses are already saved. This will take you to a short feedback form.</p>
+                    </motion.div>
+                  )}
+
                         Finish & Submit for Review
                       </Button>
                       <p className="mt-3 text-xs text-muted-foreground">Your responses are already saved. This will take you to a short feedback form.</p>
