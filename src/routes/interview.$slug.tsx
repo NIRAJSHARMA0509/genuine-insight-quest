@@ -212,9 +212,13 @@ function InterviewRoom() {
     //  3. Else if this level has objectives → ask AI reasoning questions until budget exhausted.
     //  4. Else → null (advance level).
 
-    // (1) Follow-up on most recent parent
+    // (1) Follow-up on most recent parent — ONLY if the candidate's last answer was
+    // for that parent (or one of its follow-ups). Otherwise we'd loop back and
+    // re-follow-up on an old fixed question after AI reasoning has moved on.
     const currentParent = list[qIndex - 1];
-    if (currentParent && followUps < (currentParent.max_follow_ups ?? 0)) {
+    const lastEntry = trans[trans.length - 1];
+    const lastWasOnParent = !!currentParent && !!lastEntry && lastEntry.parent_question_id === currentParent.id;
+    if (currentParent && lastWasOnParent && followUps < (currentParent.max_follow_ups ?? 0)) {
       try {
         const priorFollowUps = trans
           .filter((t) => t.parent_question_id === currentParent.id)
@@ -241,6 +245,7 @@ function InterviewRoom() {
         toast.error("Follow-up generation failed", { description: msg.slice(0, 200) });
       }
     }
+
 
     // (2) Next fixed question in the list
     const nextFixed = list[qIndex];
