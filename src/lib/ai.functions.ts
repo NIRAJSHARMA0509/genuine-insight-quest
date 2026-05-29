@@ -71,6 +71,12 @@ function sanitizeQuestionOutput(raw: string): string {
   // Strip leading arrow/bullet markers.
   text = text.replace(/^([→\-*•]\s*)+/, "").trim();
 
+  // Strip accidental greeting/opening language that must never appear mid-interview.
+  text = text
+    .replace(/^(?:hello|hi)\s*[!,.:;-]*\s*/i, "")
+    .replace(/^(?:welcome|to start|let's begin|great|thanks(?: for that)?|now)\b[\s,!.:;-]*/i, "")
+    .trim();
+
   return text;
 }
 
@@ -219,6 +225,7 @@ export const generateReasoningQuestion = createServerFn({ method: "POST" })
       ).max(40).default([]),
       previous_attempts_summary: z.string().max(2000).optional(),
       question_number: z.number().min(1).max(20),
+      interview_already_started: z.boolean().optional(),
     }).parse,
   )
   .handler(async ({ data }) => {
@@ -247,8 +254,8 @@ Default style rules:
 - Build on what the candidate has already said when relevant; do not summarise their answers back.
 - Do not repeat earlier questions.
 - Avoid yes/no questions; aim for reasoning depth.
-- If this is question 1, you may open with one short inviting line targeting the highest-weight objective.
-- If this is question 2 or later, DO NOT greet, welcome, or use opener phrases ("Welcome", "To start", "Let's begin", "Hi", "Hello", "Great", "Thanks for that", "Now"). Go straight into the question.
+- If this is the first question of the ENTIRE interview, you may open with one short inviting line targeting the highest-weight objective.
+- If the interview is already underway — even when a new level or objective section starts — DO NOT greet, welcome, restart, or use opener phrases ("Welcome", "To start", "Let's begin", "Hi", "Hello", "Great", "Thanks for that", "Now"). Go straight into the question.
 
 Before writing, silently classify the candidate's MOST RECENT answer in the transcript into ONE tier and respond accordingly:
 
@@ -284,7 +291,10 @@ ${objectivesBlock}
 ${data.previous_attempts_summary ? `Notes from candidate's previous attempt(s):\n${data.previous_attempts_summary}\n\n` : ""}Transcript so far:
 ${transcriptBlock}
 
-This is question ${data.question_number}. Produce the next question now.`,
+This is question ${data.question_number} within the current objective set.
+Interview already started: ${data.interview_already_started ? "yes" : "no"}.
+
+Produce the next question now.`,
       },
     ];
 
