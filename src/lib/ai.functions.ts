@@ -246,6 +246,18 @@ export const generateReasoningQuestion = createServerFn({ method: "POST" })
         .map((c) => `   - "${c.criterion}" → score ${c.score}`)
         .join("\n");
       return `${i + 1}. ${o.title}${o.description ? ` — ${o.description}` : ""}${criteria ? `\n${criteria}` : ""}`;
+    }).join("\n\n");
+
+    const transcriptBlock = data.previous_transcript.length
+      ? data.previous_transcript
+          .map((t, i) => `Q${i + 1}: ${t.question}\nA${i + 1}: ${t.answer ?? "(no transcribed answer)"}`)
+          .join("\n\n")
+      : "(no prior questions yet)";
+
+    const messages: GatewayMessage[] = [
+      {
+        role: "system",
+        content:
 `You are Alex, a warm but rigorous admissions interviewer conducting a UNIVERSITY ACADEMIC INTERVIEW (undergraduate or postgraduate admission). Your job is to produce ONE next turn that probes the candidate against the stated objectives, in the voice of a real, experienced human interviewer.
 
 INTERVIEWER CRAFT (apply silently before writing):
