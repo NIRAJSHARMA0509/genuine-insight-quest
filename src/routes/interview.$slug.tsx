@@ -721,8 +721,25 @@ function InterviewRoom() {
               ) : phase === "closing" ? (
                 <motion.div key="closing" initial={{ opacity: 0, filter: "blur(4px)" }} animate={{ opacity: 1, filter: "blur(0px)" }} transition={{ duration: 0.4 }}>
                   <p className="label-mono text-success">Closing</p>
-                  <p className="mt-3 text-lg leading-relaxed">Thank you. Alex is delivering the closing message…</p>
+                  <p className="mt-3 text-lg leading-relaxed">
+                    {closingDone
+                      ? "Alex has finished the closing message. When you're ready, finish and submit your interview for review."
+                      : "Thank you. Alex is delivering the closing message…"}
+                  </p>
+                  {closingDone && (
+                    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="mt-6">
+                      <Button
+                        size="lg"
+                        onClick={() => navigate({ to: "/interview/$slug/complete", params: { slug } })}
+                        className="bg-success text-success-foreground hover:bg-success/90"
+                      >
+                        Finish & Submit for Review
+                      </Button>
+                      <p className="mt-3 text-xs text-muted-foreground">Your responses are already saved. This will take you to a short feedback form.</p>
+                    </motion.div>
+                  )}
                 </motion.div>
+
               ) : phase === "feedback" && prepFeedback ? (
                 <motion.div key="fb" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
                   <p className="label-mono text-primary">Coach feedback</p>
