@@ -227,8 +227,10 @@ function InterviewRoom() {
           },
         });
         if (r.question_text?.trim()) {
-          return { text: r.question_text.trim(), think_s: 15, answer_s: 90, question_id: currentParent.id, is_follow_up: true, rCountNext: rCount, followUpsNext: followUps + 1, advanceQIdx: false };
+          const isRephrase = (r as { is_rephrase?: boolean }).is_rephrase === true;
+          return { text: r.question_text.trim(), think_s: 15, answer_s: 90, question_id: currentParent.id, is_follow_up: true, rCountNext: rCount, followUpsNext: isRephrase ? followUps : followUps + 1, advanceQIdx: false };
         }
+
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         console.error("clarifying follow-up failed", e);
