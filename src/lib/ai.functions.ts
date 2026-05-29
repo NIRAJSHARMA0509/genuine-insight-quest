@@ -288,8 +288,12 @@ This is question ${data.question_number}. Produce the next question now.`,
       },
     ];
 
-    const text = sanitizeQuestionOutput(await callGateway(messages));
-    return { question_text: text };
+    const raw = await callGateway(messages);
+    const isRephrase = /^\s*\[REPHRASE\]\s*/i.test(raw);
+    const stripped = raw.replace(/^\s*\[REPHRASE\]\s*/i, "");
+    const text = sanitizeQuestionOutput(stripped);
+    return { question_text: text, is_rephrase: isRephrase };
+
   });
 
 /* ---------- Prep-mode feedback ---------- */
