@@ -272,7 +272,34 @@ function InterviewRoom() {
           if ((b.weight ?? 0) !== (a.weight ?? 0)) return (b.weight ?? 0) - (a.weight ?? 0);
           return a.order_index - b.order_index;
         });
-        const primaryObjective = sortedObjectives[Math.min(rCount, sortedObjectives.length - 1)] ?? sortedObjectives[0];
+        // Allocate question slots proportional to weight (largest-remainder method),
+        // guaranteeing at least 1 slot per objective when budget allows.
+        const totalWeight = sortedObjectives.reduce((s, o) => s + Math.max(o.weight ?? 0, 0), 0);
+        const allocations: number[] = sortedObjectives.map(() => 0);
+        if (totalWeight > 0 && budget >= sortedObjectives.length) {
+          sortedObjectives.forEach((_, i) => (allocations[i] = 1));
+          let remaining = budget - sortedObjectives.length;
+          const raw = sortedObjectives.map((o) => (Math.max(o.weight ?? 0, 0) / totalWeight) * remaining);
+          const floors = raw.map((v) => Math.floor(v));
+          floors.forEach((f, i) => (allocations[i] += f));
+          let leftover = remaining - floors.reduce((s, f) => s + f, 0);
+          const remainders = raw.map((v, i) => ({ i, frac: v - Math.floor(v) }))
+            .sort((a, b) => b.frac - a.frac || (sortedObjectives[a.i].weight ?? 0) < (sortedObjectives[b.i].weight ?? 0) ? 1 : -1);
+          for (const r of remainders) { if (leftover <= 0) break; allocations[r.i] += 1; leftover -= 1; }
+        } else {
+          // Fallback: weighted round-robin by index
+          sortedObjectives.forEach((_, i) => (allocations[i] = Math.floor(budget / sortedObjectives.length) + (i < budget % sortedObjectives.length ? 1 : 0)));
+        }
+        // Build ordered queue: interleave so higher-weight objectives come first but appear throughout
+        const queue: number[] = [];
+        const counters = allocations.slice();
+        while (counters.some((c) => c > 0)) {
+          for (let i = 0; i < counters.length; i++) {
+            if (counters[i] > 0) { queue.push(i); counters[i] -= 1; }
+          }
+        }
+        const objIdx = queue[Math.min(rCount, queue.length - 1)] ?? 0;
+        const primaryObjective = sortedObjectives[objIdx] ?? sortedObjectives[0];
         const result = await reasoningFn({
           data: {
             primary_objective: primaryObjective
