@@ -269,7 +269,6 @@ OUTPUT FORMAT (STRICT — this text is read aloud to the candidate by a voice mo
 - NEVER restate or paraphrase the style rules above.
 - If you find yourself about to type "TIER", stop and output only the question.`,
 
-- If you find yourself about to type "TIER", stop and output only the question.`,
 
       },
       {
