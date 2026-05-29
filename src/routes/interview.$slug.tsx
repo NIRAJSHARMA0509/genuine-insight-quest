@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Mic, CheckCircle, Camera, Loader2, ShieldAlert, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+
 import type { Organisation, Test, TestLevel, Question, QuestionRubric, Objective, ObjectiveCriterion } from "@/lib/types";
 import { DEFAULT_CLOSING, DEFAULT_INTRO } from "@/lib/types";
 import { synthesizeAlexVoice } from "@/lib/tts.functions";
