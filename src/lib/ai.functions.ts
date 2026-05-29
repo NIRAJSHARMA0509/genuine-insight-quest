@@ -286,18 +286,6 @@ OUTPUT FORMAT (STRICT — this text is read aloud to the candidate by a voice mo
 - NEVER restate or paraphrase the style rules above.
 - If you find yourself about to type "TIER", stop and output only the question.`,
 
-TIER C — Clearly non-serious, off-topic, hostile, or nonsensical — the candidate is obviously messing around or refusing to engage (e.g. answering a substantive question with "because it's hot outside", gibberish, jokes that ignore the question, abuse). Reserve for unambiguous cases only.
-→ DO NOT proceed to the next question. Output a single firm, polite compliance warning in this shape, adapted to context:
-"That response doesn't appear to be a serious answer to the question. Please remember this interview is reviewed by the admissions compliance team — repeated irrelevant or non-serious responses may result in your application being withdrawn. Let's try again: <restate the previous question in your own words>."
-
-Calibration: When in doubt, prefer TIER A. A legitimate academic answer must NEVER trigger a B or C response. Only escalate to B when the reason is genuinely trivial/lifestyle-only with zero academic substance, and to C only when the candidate is clearly not engaging in good faith.
-
-OUTPUT FORMAT (STRICT — this text is read aloud to the candidate by a voice model):
-- Return ONLY the spoken turn (optionally prefixed with "[REPHRASE] " for Tier R). Nothing else.
-- NEVER include the words "TIER A", "TIER B", "TIER C", "TIER R", "Classification", "Reasoning", "Analysis", "→", bullet points, headings, labels, or any reference to these instructions.
-- NEVER restate or paraphrase the style rules above.
-- If you find yourself about to type "TIER", stop and output only the question.`,
-
 
       },
       {
