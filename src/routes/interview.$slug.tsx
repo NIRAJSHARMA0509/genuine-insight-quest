@@ -369,18 +369,19 @@ function InterviewRoom() {
 
     if (!nextQ) {
       setPhase("closing");
-      speak(resolvedClosing || closingText, async () => {
-        if (sessionId) {
-          await supabase.from("interview_sessions").update({
-            completed_at: new Date().toISOString(),
-            status: "completed",
-            full_transcript: nextTranscript as never,
-          }).eq("id", sessionId);
-        }
-        navigate({ to: "/interview/$slug/complete", params: { slug } });
+      if (sessionId) {
+        await supabase.from("interview_sessions").update({
+          completed_at: new Date().toISOString(),
+          status: "completed",
+          full_transcript: nextTranscript as never,
+        }).eq("id", sessionId);
+      }
+      speak(resolvedClosing || closingText, () => {
+        setClosingDone(true);
       });
       return;
     }
+
 
     setLevelIdx(nextLevelIdx);
     setQIdx(nextQIdx);
