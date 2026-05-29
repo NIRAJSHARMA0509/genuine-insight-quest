@@ -272,6 +272,7 @@ function InterviewRoom() {
             })),
             previous_transcript: trans.map((t) => ({ question: t.question, answer: t.answer_text || `(${t.duration_s}s recorded; no transcript)` })),
             question_number: rCount + 1,
+            interview_already_started: trans.length > 0,
           },
         });
         return {
