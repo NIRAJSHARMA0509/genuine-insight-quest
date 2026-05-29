@@ -193,9 +193,13 @@ ${objBlock}
 Produce the next clarifying follow-up now.`,
       },
     ];
-    const text = sanitizeQuestionOutput(await callGateway(messages));
+    const raw = await callGateway(messages);
+    const isRephrase = /^\s*\[REPHRASE\]\s*/i.test(raw);
+    const stripped = raw.replace(/^\s*\[REPHRASE\]\s*/i, "");
+    const text = sanitizeQuestionOutput(stripped);
 
-    return { question_text: text };
+    return { question_text: text, is_rephrase: isRephrase };
+
   });
 
 /* ---------- Reasoning question generator ---------- */
