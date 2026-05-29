@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -20,7 +20,7 @@ export const Route = createFileRoute("/interview/$slug")({
       { name: "description", content: "Your scheduled AI interview. Please ensure you have a working camera and microphone." },
     ],
   }),
-  component: InterviewRoom,
+  component: InterviewRoute,
 });
 
 type Phase =
@@ -841,6 +841,16 @@ function InterviewRoom() {
       </div>
     </div>
   );
+}
+
+function InterviewRoute() {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+
+  if (pathname.endsWith("/complete")) {
+    return <Outlet />;
+  }
+
+  return <InterviewRoom />;
 }
 
 function Timer({ s }: { s: number }) {
