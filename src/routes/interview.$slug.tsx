@@ -767,9 +767,10 @@ function InterviewRoom() {
         </div>
       </header>
 
-      <div className="mx-auto grid max-w-7xl gap-6 px-6 py-8 md:grid-cols-[1.15fr_1fr]">
-        {/* Interviewer panel */}
-        <section className="surface-card relative overflow-hidden p-0">
+      <div className="mx-auto grid max-w-7xl gap-3 px-3 py-3 md:gap-6 md:px-6 md:py-8 md:grid-cols-[1.15fr_1fr]">
+        {/* Interviewer panel — hidden on mobile (compact chip lives in header) */}
+        <section className="surface-card relative order-3 hidden overflow-hidden p-0 md:order-1 md:block">
+
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
           <div className="flex items-center justify-between border-b border-border/70 px-6 py-3">
             <div className="flex items-center gap-2">
