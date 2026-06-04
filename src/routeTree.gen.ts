@@ -9,21 +9,27 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as ConfigureIndexRouteImport } from './routes/configure.index'
 import { Route as InterviewSlugRouteImport } from './routes/interview.$slug'
-import { Route as ConfigureOrgIdIndexRouteImport } from './routes/configure.$orgId.index'
+import { Route as AuthenticatedConfigureIndexRouteImport } from './routes/_authenticated/configure.index'
 import { Route as InterviewSlugCompleteRouteImport } from './routes/interview.$slug.complete'
-import { Route as ConfigureOrgIdTestTestIdRouteImport } from './routes/configure.$orgId.test.$testId'
+import { Route as AuthenticatedConfigureOrgIdIndexRouteImport } from './routes/_authenticated/configure.$orgId.index'
+import { Route as AuthenticatedConfigureOrgIdTestTestIdRouteImport } from './routes/_authenticated/configure.$orgId.test.$testId'
 
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ConfigureIndexRoute = ConfigureIndexRouteImport.update({
-  id: '/configure/',
-  path: '/configure/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const InterviewSlugRoute = InterviewSlugRouteImport.update({
@@ -31,97 +37,118 @@ const InterviewSlugRoute = InterviewSlugRouteImport.update({
   path: '/interview/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ConfigureOrgIdIndexRoute = ConfigureOrgIdIndexRouteImport.update({
-  id: '/configure/$orgId/',
-  path: '/configure/$orgId/',
-  getParentRoute: () => rootRouteImport,
-} as any)
+const AuthenticatedConfigureIndexRoute =
+  AuthenticatedConfigureIndexRouteImport.update({
+    id: '/configure/',
+    path: '/configure/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const InterviewSlugCompleteRoute = InterviewSlugCompleteRouteImport.update({
   id: '/complete',
   path: '/complete',
   getParentRoute: () => InterviewSlugRoute,
 } as any)
-const ConfigureOrgIdTestTestIdRoute =
-  ConfigureOrgIdTestTestIdRouteImport.update({
+const AuthenticatedConfigureOrgIdIndexRoute =
+  AuthenticatedConfigureOrgIdIndexRouteImport.update({
+    id: '/configure/$orgId/',
+    path: '/configure/$orgId/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedConfigureOrgIdTestTestIdRoute =
+  AuthenticatedConfigureOrgIdTestTestIdRouteImport.update({
     id: '/configure/$orgId/test/$testId',
     path: '/configure/$orgId/test/$testId',
-    getParentRoute: () => rootRouteImport,
+    getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
   '/interview/$slug': typeof InterviewSlugRouteWithChildren
-  '/configure/': typeof ConfigureIndexRoute
   '/interview/$slug/complete': typeof InterviewSlugCompleteRoute
-  '/configure/$orgId/': typeof ConfigureOrgIdIndexRoute
-  '/configure/$orgId/test/$testId': typeof ConfigureOrgIdTestTestIdRoute
+  '/configure/': typeof AuthenticatedConfigureIndexRoute
+  '/configure/$orgId/': typeof AuthenticatedConfigureOrgIdIndexRoute
+  '/configure/$orgId/test/$testId': typeof AuthenticatedConfigureOrgIdTestTestIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
   '/interview/$slug': typeof InterviewSlugRouteWithChildren
-  '/configure': typeof ConfigureIndexRoute
   '/interview/$slug/complete': typeof InterviewSlugCompleteRoute
-  '/configure/$orgId': typeof ConfigureOrgIdIndexRoute
-  '/configure/$orgId/test/$testId': typeof ConfigureOrgIdTestTestIdRoute
+  '/configure': typeof AuthenticatedConfigureIndexRoute
+  '/configure/$orgId': typeof AuthenticatedConfigureOrgIdIndexRoute
+  '/configure/$orgId/test/$testId': typeof AuthenticatedConfigureOrgIdTestTestIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/auth': typeof AuthRoute
   '/interview/$slug': typeof InterviewSlugRouteWithChildren
-  '/configure/': typeof ConfigureIndexRoute
   '/interview/$slug/complete': typeof InterviewSlugCompleteRoute
-  '/configure/$orgId/': typeof ConfigureOrgIdIndexRoute
-  '/configure/$orgId/test/$testId': typeof ConfigureOrgIdTestTestIdRoute
+  '/_authenticated/configure/': typeof AuthenticatedConfigureIndexRoute
+  '/_authenticated/configure/$orgId/': typeof AuthenticatedConfigureOrgIdIndexRoute
+  '/_authenticated/configure/$orgId/test/$testId': typeof AuthenticatedConfigureOrgIdTestTestIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/auth'
     | '/interview/$slug'
-    | '/configure/'
     | '/interview/$slug/complete'
+    | '/configure/'
     | '/configure/$orgId/'
     | '/configure/$orgId/test/$testId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/auth'
     | '/interview/$slug'
-    | '/configure'
     | '/interview/$slug/complete'
+    | '/configure'
     | '/configure/$orgId'
     | '/configure/$orgId/test/$testId'
   id:
     | '__root__'
     | '/'
+    | '/_authenticated'
+    | '/auth'
     | '/interview/$slug'
-    | '/configure/'
     | '/interview/$slug/complete'
-    | '/configure/$orgId/'
-    | '/configure/$orgId/test/$testId'
+    | '/_authenticated/configure/'
+    | '/_authenticated/configure/$orgId/'
+    | '/_authenticated/configure/$orgId/test/$testId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AuthRoute: typeof AuthRoute
   InterviewSlugRoute: typeof InterviewSlugRouteWithChildren
-  ConfigureIndexRoute: typeof ConfigureIndexRoute
-  ConfigureOrgIdIndexRoute: typeof ConfigureOrgIdIndexRoute
-  ConfigureOrgIdTestTestIdRoute: typeof ConfigureOrgIdTestTestIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/configure/': {
-      id: '/configure/'
-      path: '/configure'
-      fullPath: '/configure/'
-      preLoaderRoute: typeof ConfigureIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/interview/$slug': {
@@ -131,12 +158,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InterviewSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/configure/$orgId/': {
-      id: '/configure/$orgId/'
-      path: '/configure/$orgId'
-      fullPath: '/configure/$orgId/'
-      preLoaderRoute: typeof ConfigureOrgIdIndexRouteImport
-      parentRoute: typeof rootRouteImport
+    '/_authenticated/configure/': {
+      id: '/_authenticated/configure/'
+      path: '/configure'
+      fullPath: '/configure/'
+      preLoaderRoute: typeof AuthenticatedConfigureIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/interview/$slug/complete': {
       id: '/interview/$slug/complete'
@@ -145,15 +172,38 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InterviewSlugCompleteRouteImport
       parentRoute: typeof InterviewSlugRoute
     }
-    '/configure/$orgId/test/$testId': {
-      id: '/configure/$orgId/test/$testId'
+    '/_authenticated/configure/$orgId/': {
+      id: '/_authenticated/configure/$orgId/'
+      path: '/configure/$orgId'
+      fullPath: '/configure/$orgId/'
+      preLoaderRoute: typeof AuthenticatedConfigureOrgIdIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/configure/$orgId/test/$testId': {
+      id: '/_authenticated/configure/$orgId/test/$testId'
       path: '/configure/$orgId/test/$testId'
       fullPath: '/configure/$orgId/test/$testId'
-      preLoaderRoute: typeof ConfigureOrgIdTestTestIdRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedConfigureOrgIdTestTestIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
   }
 }
+
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedConfigureIndexRoute: typeof AuthenticatedConfigureIndexRoute
+  AuthenticatedConfigureOrgIdIndexRoute: typeof AuthenticatedConfigureOrgIdIndexRoute
+  AuthenticatedConfigureOrgIdTestTestIdRoute: typeof AuthenticatedConfigureOrgIdTestTestIdRoute
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedConfigureIndexRoute: AuthenticatedConfigureIndexRoute,
+  AuthenticatedConfigureOrgIdIndexRoute: AuthenticatedConfigureOrgIdIndexRoute,
+  AuthenticatedConfigureOrgIdTestTestIdRoute:
+    AuthenticatedConfigureOrgIdTestTestIdRoute,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
 interface InterviewSlugRouteChildren {
   InterviewSlugCompleteRoute: typeof InterviewSlugCompleteRoute
@@ -169,21 +219,10 @@ const InterviewSlugRouteWithChildren = InterviewSlugRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AuthRoute: AuthRoute,
   InterviewSlugRoute: InterviewSlugRouteWithChildren,
-  ConfigureIndexRoute: ConfigureIndexRoute,
-  ConfigureOrgIdIndexRoute: ConfigureOrgIdIndexRoute,
-  ConfigureOrgIdTestTestIdRoute: ConfigureOrgIdTestTestIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

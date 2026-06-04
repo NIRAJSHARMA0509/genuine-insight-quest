@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Test, TestLevel, Question, QuestionRubric, Objective, ObjectiveCriterion, LevelMode } from "@/lib/types";
 import { DEFAULT_INTRO, DEFAULT_CLOSING } from "@/lib/types";
 
-export const Route = createFileRoute("/configure/$orgId/test/$testId")({
+export const Route = createFileRoute("/_authenticated/configure/$orgId/test/$testId")({
   head: () => ({ meta: [{ title: "Test builder — SGT" }] }),
   component: TestBuilder,
 });
