@@ -143,36 +143,103 @@ function InterviewRoom() {
   const closingText = test?.closing_message || DEFAULT_CLOSING;
 
   /* ---------------- ElevenLabs voice ---------------- */
+  const audioUnlockedRef = useRef(false);
+  const lastBlobUrlRef = useRef<string | null>(null);
+
+  // Prime a single reusable <audio> element during a user gesture.
+  // iOS Safari & many mobile browsers block playback unless the element
+  // was first activated synchronously inside a tap handler.
+  const primeAudio = useCallback(() => {
+    if (audioUnlockedRef.current) return;
+    try {
+      if (!audioRef.current) {
+        const a = new Audio();
+        (a as unknown as { playsInline: boolean }).playsInline = true;
+        a.preload = "auto";
+        (a as HTMLAudioElement & { 'webkit-playsinline'?: boolean })['webkit-playsinline'] = true;
+        audioRef.current = a;
+      }
+      const a = audioRef.current;
+      // 1-frame silent MP3 to satisfy the gesture requirement.
+      a.src = "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjI5LjEwMAAAAAAAAAAAAAAA//tQxAADB8AhSmxhIIEVCSiJrDCQBTcu3UrAIwUdkRgQbFAZC1CQEwTJ9mjRvBA4UOLD8nKVOWfh+UlK3z/177OXrfOdKl7097+vt+9art/v966qiyaWblXqWeWuT//9PMu7lpZWxlYWXrUWHkv//+/v//+/v//4qrlevYtUtbtdyz//6urlXrXVzKWVS6urlXr/+rlXKXqyKWVWvqyKWVfV9b//6+r/V9R6VVB1WAg6c2DRtMtaxYbCwwYzNnldUKgSCAUNkRJTSAUNUEd1ksZguUJFTGV0aS8gKLNDV0ZGNoeFEYAUk0jWuyqWUkPHrXvKKpRlFCYWAg6kg/MDi8gxxoCgcWHFYAUEABBAGEAdM4j7eYpfPLQ==";
+      a.muted = true;
+      const p = a.play();
+      if (p && typeof p.then === "function") {
+        p.then(() => { a.pause(); a.currentTime = 0; a.muted = false; audioUnlockedRef.current = true; })
+         .catch(() => { /* will retry on next gesture */ });
+      } else {
+        a.pause(); a.muted = false; audioUnlockedRef.current = true;
+      }
+    } catch { /* noop */ }
+  }, []);
+
+  const speakWithBrowser = useCallback((text: string, onEnd?: () => void) => {
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = "en-GB"; u.rate = 0.98;
+      u.onend = () => { setIsSpeaking(false); onEnd?.(); };
+      u.onerror = () => { setIsSpeaking(false); onEnd?.(); };
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(u);
+      return;
+    }
+    setIsSpeaking(false); onEnd?.();
+  }, []);
+
   const speak = useCallback(async (text: string, onEnd?: () => void) => {
     try {
       setIsSpeaking(true);
       const result = await fetchVoice({ data: { text } });
       if (!result.ok) {
-        if (typeof window !== "undefined" && "speechSynthesis" in window) {
-          const u = new SpeechSynthesisUtterance(text);
-          u.lang = "en-GB"; u.rate = 0.98;
-          u.onend = () => { setIsSpeaking(false); onEnd?.(); };
-          u.onerror = () => { setIsSpeaking(false); onEnd?.(); };
-          window.speechSynthesis.cancel();
-          window.speechSynthesis.speak(u);
-          return;
-        }
-        setIsSpeaking(false); onEnd?.(); return;
+        speakWithBrowser(text, onEnd);
+        return;
       }
-      if (audioRef.current) { try { audioRef.current.pause(); } catch { /* noop */ } }
-      const audio = new Audio(`data:audio/mpeg;base64,${result.audioBase64}`);
-      audioRef.current = audio;
-      const finish = () => { setIsSpeaking(false); onEnd?.(); };
-      audio.onended = finish; audio.onerror = finish;
-      await audio.play();
+
+      // Convert base64 → Blob URL. iOS Safari is notoriously flaky with
+      // long data: URIs on <audio>; blob URLs play reliably.
+      const bin = atob(result.audioBase64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const blob = new Blob([bytes], { type: "audio/mpeg" });
+      const url = URL.createObjectURL(blob);
+      if (lastBlobUrlRef.current) { try { URL.revokeObjectURL(lastBlobUrlRef.current); } catch { /* noop */ } }
+      lastBlobUrlRef.current = url;
+
+      if (!audioRef.current) {
+        audioRef.current = new Audio();
+        (audioRef.current as unknown as { playsInline: boolean }).playsInline = true;
+        audioRef.current.preload = "auto";
+      }
+      const audio = audioRef.current;
+      try { audio.pause(); } catch { /* noop */ }
+      audio.src = url;
+      audio.muted = false;
+      audio.load();
+
+      const finish = () => {
+        setIsSpeaking(false);
+        audio.onended = null; audio.onerror = null;
+        onEnd?.();
+      };
+      audio.onended = finish;
+      audio.onerror = () => { console.warn("Audio element error, falling back to browser TTS"); speakWithBrowser(text, onEnd); };
+
+      try {
+        await audio.play();
+      } catch (playErr) {
+        console.warn("audio.play() blocked or failed on mobile:", playErr);
+        speakWithBrowser(text, onEnd);
+      }
     } catch (e) {
       console.error("TTS failed:", e);
       setIsSpeaking(false); onEnd?.();
     }
-  }, [fetchVoice]);
+  }, [fetchVoice, speakWithBrowser]);
 
   /* ---------------- Permission ---------------- */
   const requestPermissions = useCallback(async () => {
+    // Prime audio synchronously inside the tap so mobile browsers unlock playback.
+    primeAudio();
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280 }, audio: true });
       streamRef.current = stream;
@@ -180,7 +247,7 @@ function InterviewRoom() {
     } catch {
       toast.error("Camera & microphone access is required to begin the interview.");
     }
-  }, []);
+  }, [primeAudio]);
 
   useEffect(() => {
     if (videoRef.current && streamRef.current && !videoRef.current.srcObject) {
