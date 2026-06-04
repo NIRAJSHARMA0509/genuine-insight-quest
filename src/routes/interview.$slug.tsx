@@ -738,30 +738,39 @@ function InterviewRoom() {
   return (
     <div className="min-h-screen bg-background">
       {/* Top brand bar */}
-      <header className="border-b border-border/70 bg-card/60 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-3.5">
-          <div className="flex items-center gap-3">
+      <header className="sticky top-0 z-30 border-b border-border/70 bg-card/80 backdrop-blur">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-2.5 md:px-6 md:py-3.5">
+          <div className="flex min-w-0 items-center gap-2.5 md:gap-3">
             {org?.logo_url ? (
-              <img src={org.logo_url} alt="" className="h-8 w-8 rounded-md object-contain ring-1 ring-border" />
+              <img src={org.logo_url} alt="" className="h-7 w-7 shrink-0 rounded-md object-contain ring-1 ring-border md:h-8 md:w-8" />
             ) : (
-              <div className="h-8 w-8 rounded-md bg-primary/10 ring-1 ring-border" />
+              <div className="h-7 w-7 shrink-0 rounded-md bg-primary/10 ring-1 ring-border md:h-8 md:w-8" />
             )}
-            <div className="leading-tight">
-              <p className="text-sm font-semibold tracking-tight">{org?.name ?? "Compliance Interview"}</p>
-              <p className="label-mono mt-0.5">Compliance Interview · Live Session</p>
+            <div className="min-w-0 leading-tight">
+              <p className="truncate text-sm font-semibold tracking-tight">{org?.name ?? "Compliance Interview"}</p>
+              <p className="label-mono mt-0.5 hidden md:block">Compliance Interview · Live Session</p>
+            </div>
+            {/* Mobile-only compact Alex chip */}
+            <div className="ml-1 flex items-center gap-1.5 rounded-full border border-border bg-background px-1.5 py-0.5 md:hidden">
+              <div className={`relative h-6 w-6 rounded-full p-[1.5px] ${isSpeaking ? "bg-gradient-to-br from-primary to-primary/30" : "bg-gradient-to-br from-elevated to-border"}`}>
+                <img src={alexAvatar} alt="Alex" className="h-full w-full rounded-full object-cover" />
+                {isSpeaking && <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 animate-pulse rounded-full bg-primary ring-1 ring-card" />}
+              </div>
+              <span className="pr-1 text-[11px] font-medium">Alex</span>
             </div>
           </div>
-          <div className="flex items-center gap-2 rounded-full border border-border bg-background px-3 py-1.5">
+          <div className="flex shrink-0 items-center gap-2 rounded-full border border-border bg-background px-2.5 py-1 md:px-3 md:py-1.5">
             <span className={`h-2 w-2 rounded-full ${phaseTone} ${phase === "recording" || isSpeaking ? "animate-pulse" : ""}`} />
             <span className="label-mono">{phaseLabel}</span>
-            {phase === "recording" && <span className="ml-2 border-l border-border pl-2"><Timer s={timeLeft} /></span>}
+            {phase === "recording" && <span className="ml-1.5 border-l border-border pl-1.5 md:ml-2 md:pl-2"><Timer s={timeLeft} /></span>}
           </div>
         </div>
       </header>
 
-      <div className="mx-auto grid max-w-7xl gap-6 px-6 py-8 md:grid-cols-[1.15fr_1fr]">
-        {/* Interviewer panel */}
-        <section className="surface-card relative overflow-hidden p-0">
+      <div className="mx-auto grid max-w-7xl gap-3 px-3 py-3 md:gap-6 md:px-6 md:py-8 md:grid-cols-[1.15fr_1fr]">
+        {/* Interviewer panel — hidden on mobile (compact chip lives in header) */}
+        <section className="surface-card relative order-3 hidden overflow-hidden p-0 md:order-1 md:block">
+
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
           <div className="flex items-center justify-between border-b border-border/70 px-6 py-3">
             <div className="flex items-center gap-2">
@@ -786,10 +795,10 @@ function InterviewRoom() {
           </div>
         </section>
 
-        {/* Candidate panel */}
-        <section className="surface-card relative overflow-hidden p-0">
+        {/* Candidate panel — small on mobile to keep question in view */}
+        <section className="surface-card relative order-2 overflow-hidden p-0 md:order-2">
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-success/40 to-transparent" />
-          <div className="flex items-center justify-between border-b border-border/70 px-6 py-3">
+          <div className="flex items-center justify-between border-b border-border/70 px-4 py-2 md:px-6 md:py-3">
             <div className="flex items-center gap-2">
               <span className={`h-1.5 w-1.5 rounded-full ${phase === "recording" ? "bg-danger animate-pulse" : "bg-success"}`} />
               <p className="label-mono">You · Candidate</p>
@@ -808,19 +817,20 @@ function InterviewRoom() {
               </div>
             )}
           </div>
-          <div className="p-4">
-            <div className="relative aspect-video w-full overflow-hidden rounded-[12px] bg-background ring-1 ring-border">
+          <div className="p-2.5 md:p-4">
+            <div className="relative mx-auto w-full max-w-[220px] overflow-hidden rounded-[10px] bg-background ring-1 ring-border md:max-w-none aspect-video">
               <video ref={videoRef} autoPlay muted playsInline className="h-full w-full object-cover" />
-              <div className="pointer-events-none absolute inset-0 rounded-[12px] ring-1 ring-inset ring-foreground/5" />
+              <div className="pointer-events-none absolute inset-0 rounded-[10px] ring-1 ring-inset ring-foreground/5" />
             </div>
           </div>
         </section>
 
-        {/* Question / dialogue panel */}
-        <div className="md:col-span-2">
+        {/* Question / dialogue panel — first on mobile so candidate can focus */}
+        <div className="order-1 md:order-3 md:col-span-2">
           <section className="surface-card relative overflow-hidden p-0">
             <div className="absolute inset-y-0 left-0 w-[3px] bg-gradient-to-b from-primary via-primary/50 to-transparent" />
-            <div className="flex items-center justify-between border-b border-border/70 px-8 py-3">
+            <div className="flex items-center justify-between gap-3 border-b border-border/70 px-4 py-2.5 md:px-8 md:py-3">
+
               <div className="flex items-center gap-2">
                 <span className="h-1.5 w-1.5 rounded-full bg-primary" />
                 <p className="label-mono">
@@ -836,7 +846,7 @@ function InterviewRoom() {
               )}
             </div>
 
-            <div className="px-8 py-8">
+            <div className="px-4 py-5 md:px-8 md:py-8">
               <AnimatePresence mode="wait">
                 {phase === "intro_playing" ? (
                   <motion.div key="intro" initial={{ opacity: 0, filter: "blur(4px)" }} animate={{ opacity: 1, filter: "blur(0px)" }} exit={{ opacity: 0, filter: "blur(4px)" }} transition={{ duration: 0.4 }}>
@@ -891,7 +901,7 @@ function InterviewRoom() {
                   </motion.div>
                 ) : currentQuestion ? (
                   <motion.div key={`q-${levelIdx}-${qIdx}-${reasoningCount}`} initial={{ opacity: 0, filter: "blur(4px)", y: 8 }} animate={{ opacity: 1, filter: "blur(0px)", y: 0 }} exit={{ opacity: 0, filter: "blur(4px)" }} transition={{ duration: 0.4 }}>
-                    <h2 className="text-2xl font-semibold leading-snug tracking-tight text-foreground md:text-[28px]">
+                    <h2 className="text-xl font-semibold leading-snug tracking-tight text-foreground md:text-[28px]">
                       <span className="mr-2 select-none font-serif text-primary/60">“</span>
                       {currentQuestion.text}
                     </h2>
@@ -900,7 +910,7 @@ function InterviewRoom() {
               </AnimatePresence>
             </div>
 
-            <div className="border-t border-border/70 bg-muted/30 px-8 py-5">
+            <div className="border-t border-border/70 bg-muted/30 px-4 py-4 md:px-8 md:py-5">
               <div className="flex flex-col items-center gap-2">
                 {phase === "ready" && (
                   <>
