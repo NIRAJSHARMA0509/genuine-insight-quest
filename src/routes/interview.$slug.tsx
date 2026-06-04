@@ -795,10 +795,10 @@ function InterviewRoom() {
           </div>
         </section>
 
-        {/* Candidate panel */}
-        <section className="surface-card relative overflow-hidden p-0">
+        {/* Candidate panel — small on mobile to keep question in view */}
+        <section className="surface-card relative order-2 overflow-hidden p-0 md:order-2">
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-success/40 to-transparent" />
-          <div className="flex items-center justify-between border-b border-border/70 px-6 py-3">
+          <div className="flex items-center justify-between border-b border-border/70 px-4 py-2 md:px-6 md:py-3">
             <div className="flex items-center gap-2">
               <span className={`h-1.5 w-1.5 rounded-full ${phase === "recording" ? "bg-danger animate-pulse" : "bg-success"}`} />
               <p className="label-mono">You · Candidate</p>
@@ -817,19 +817,20 @@ function InterviewRoom() {
               </div>
             )}
           </div>
-          <div className="p-4">
-            <div className="relative aspect-video w-full overflow-hidden rounded-[12px] bg-background ring-1 ring-border">
+          <div className="p-2.5 md:p-4">
+            <div className="relative mx-auto w-full max-w-[220px] overflow-hidden rounded-[10px] bg-background ring-1 ring-border md:max-w-none aspect-video">
               <video ref={videoRef} autoPlay muted playsInline className="h-full w-full object-cover" />
-              <div className="pointer-events-none absolute inset-0 rounded-[12px] ring-1 ring-inset ring-foreground/5" />
+              <div className="pointer-events-none absolute inset-0 rounded-[10px] ring-1 ring-inset ring-foreground/5" />
             </div>
           </div>
         </section>
 
-        {/* Question / dialogue panel */}
-        <div className="md:col-span-2">
+        {/* Question / dialogue panel — first on mobile so candidate can focus */}
+        <div className="order-1 md:order-3 md:col-span-2">
           <section className="surface-card relative overflow-hidden p-0">
             <div className="absolute inset-y-0 left-0 w-[3px] bg-gradient-to-b from-primary via-primary/50 to-transparent" />
-            <div className="flex items-center justify-between border-b border-border/70 px-8 py-3">
+            <div className="flex items-center justify-between gap-3 border-b border-border/70 px-4 py-2.5 md:px-8 md:py-3">
+
               <div className="flex items-center gap-2">
                 <span className="h-1.5 w-1.5 rounded-full bg-primary" />
                 <p className="label-mono">
