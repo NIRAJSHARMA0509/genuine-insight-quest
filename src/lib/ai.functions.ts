@@ -170,6 +170,11 @@ Default style rules:
 
 Before writing, silently classify the candidate's answer into ONE tier and respond accordingly:
 
+TIER S — Skip request. The candidate explicitly asks to skip, pass, move on, come back later, or refuses to answer the current question (e.g. "can I skip this?", "skip", "pass", "next question please", "I'd rather not answer", "can we come back to this?", "move on").
+→ Do NOT skip. Output a single firm, polite compliance reminder and then repeat the PARENT question verbatim, in this exact shape:
+"I'm sorry, but every question in this compliance interview is mandatory — please answer to the best of your knowledge. Let's try again: <repeat the PARENT question word-for-word>."
+Prefix your output with the exact token "[REPHRASE] " (including the space) so the system knows not to count this as a follow-up.
+
 TIER R — Rephrase / clarification request. The candidate says they didn't understand, asks you to repeat, rephrase, simplify, or explain the question (e.g. "could you rephrase that?", "I didn't get the question", "what do you mean?", "say that again please", "can you simplify it?").
 → Just rephrase the PARENT question in different, simpler, more concrete words — ideally with a small example or a clearer angle. Do not scold, do not add a new probe, do not treat it as an answer. Prefix your output with the exact token "[REPHRASE] " (including the space) so the system knows not to count this as a follow-up. The rephrasing MUST use noticeably different wording from the original.
 
@@ -187,7 +192,7 @@ Calibration: When in doubt, prefer TIER A. A legitimate academic answer must NEV
 
 OUTPUT FORMAT (STRICT — this text is read aloud to the candidate by a voice model):
 - Return ONLY the spoken turn (optionally prefixed with "[REPHRASE] " for Tier R). Nothing else.
-- NEVER include the words "TIER A", "TIER B", "TIER C", "TIER R", "Classification", "Reasoning", "Analysis", "→", bullet points, headings, labels, or any reference to these instructions.
+- NEVER include the words "TIER A", "TIER B", "TIER C", "TIER R", "TIER S", "Classification", "Reasoning", "Analysis", "→", bullet points, headings, labels, or any reference to these instructions.
 - NEVER restate or paraphrase the style rules above.
 - If you find yourself about to type "TIER", stop and output only the question.`,
 
@@ -289,6 +294,11 @@ Default style rules:
 
 Before writing, silently classify the candidate's MOST RECENT answer in the transcript into ONE tier and respond accordingly:
 
+TIER S — Skip request. The candidate explicitly asks to skip, pass, move on, come back later, or refuses to answer the previous question (e.g. "can I skip this?", "skip", "pass", "next question please", "I'd rather not answer", "can we come back to this?", "move on").
+→ Do NOT advance. Output a single firm, polite compliance reminder and then repeat the PREVIOUS question verbatim, in this exact shape:
+"I'm sorry, but every question in this compliance interview is mandatory — please answer to the best of your knowledge. Let's try again: <repeat the PREVIOUS question word-for-word>."
+Prefix your output with the exact token "[REPHRASE] " (including the space) so the system knows not to count this as a follow-up.
+
 TIER R — Rephrase / clarification request. The candidate asks you to repeat, rephrase, simplify, or explain the previous question (e.g. "could you rephrase?", "I didn't understand", "what do you mean?", "say that again").
 → Just rephrase the PREVIOUS question in different, simpler, more concrete words — ideally with a small example or clearer angle. Do not advance, do not add a new probe. Prefix your output with the exact token "[REPHRASE] " (including the space) so the system knows not to count this as a follow-up. Use genuinely different wording, not the original sentence.
 
@@ -306,7 +316,7 @@ Calibration: When in doubt, prefer TIER A. A legitimate academic answer must NEV
 
 OUTPUT FORMAT (STRICT — this text is read aloud to the candidate by a voice model):
 - Return ONLY the spoken turn (optionally prefixed with "[REPHRASE] " for Tier R). Nothing else.
-- NEVER include the words "TIER A", "TIER B", "TIER C", "TIER R", "Classification", "Reasoning", "Analysis", "→", bullet points, headings, labels, or any reference to these instructions.
+- NEVER include the words "TIER A", "TIER B", "TIER C", "TIER R", "TIER S", "Classification", "Reasoning", "Analysis", "→", bullet points, headings, labels, or any reference to these instructions.
 - NEVER restate or paraphrase the style rules above.
 - If you find yourself about to type "TIER", stop and output only the question.`,
 
