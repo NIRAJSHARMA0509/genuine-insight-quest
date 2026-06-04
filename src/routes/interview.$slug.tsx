@@ -723,147 +723,226 @@ function InterviewRoom() {
 
   // (level label intentionally not shown to the candidate)
 
+  const phaseLabel =
+    phase === "recording" ? "Recording" :
+    phase === "intro_playing" ? "Introduction" :
+    phase === "transitioning" ? "Processing" :
+    phase === "feedback" ? "Feedback" :
+    phase === "closing" ? "Closing" :
+    isSpeaking ? "Speaking" : "Standby";
+  const phaseTone =
+    phase === "recording" ? "bg-danger" :
+    phase === "transitioning" ? "bg-warning" :
+    isSpeaking ? "bg-primary" : "bg-muted-foreground/40";
+
   return (
     <div className="min-h-screen bg-background">
-      <div className="mx-auto grid min-h-screen max-w-7xl gap-6 px-6 py-8 md:grid-cols-[1.2fr_1fr]">
-        <div className="relative flex flex-col items-center justify-center rounded-[20px] border border-border bg-surface p-10">
-          {org?.logo_url && <img src={org.logo_url} alt="" className="absolute left-6 top-6 h-9 w-9 object-contain" />}
-          <div className={`relative h-48 w-48 rounded-full p-[3px] ${isSpeaking ? "animate-pulse-ring bg-gradient-to-br from-primary to-primary/40" : "animate-breathe bg-gradient-to-br from-elevated to-border"}`}>
-            <img src={alexAvatar} alt="Alex, your AI interviewer" className="h-full w-full rounded-full object-cover" />
-          </div>
-          <p className="mt-8 label-mono">Interviewer</p>
-          <h2 className="mt-2 text-xl font-semibold">Alex</h2>
-          <p className="mt-1 text-sm text-muted-foreground">{org?.name}</p>
-          {/* level/mode intentionally hidden from candidate */}
-        </div>
-
-        <div className="relative flex flex-col rounded-[20px] border border-border bg-surface p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className={`h-2 w-2 rounded-full ${phase === "recording" ? "bg-danger animate-pulse" : "bg-muted-foreground/50"}`} />
-              <span className="label-mono">{phase === "recording" ? "Recording" : "Standby"}</span>
+      {/* Top brand bar */}
+      <header className="border-b border-border/70 bg-card/60 backdrop-blur">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-3.5">
+          <div className="flex items-center gap-3">
+            {org?.logo_url ? (
+              <img src={org.logo_url} alt="" className="h-8 w-8 rounded-md object-contain ring-1 ring-border" />
+            ) : (
+              <div className="h-8 w-8 rounded-md bg-primary/10 ring-1 ring-border" />
+            )}
+            <div className="leading-tight">
+              <p className="text-sm font-semibold tracking-tight">{org?.name ?? "Compliance Interview"}</p>
+              <p className="label-mono mt-0.5">Compliance Interview · Live Session</p>
             </div>
-            {phase === "recording" && <Timer s={timeLeft} />}
-            {phase === "ready" && !isSpeaking && currentQuestion && currentQuestion.think_s > 0 && (
-              <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="flex items-center gap-2 rounded-full bg-warning/15 px-3 py-1.5 ring-1 ring-warning/40">
-                <span className="h-2 w-2 animate-pulse rounded-full bg-warning" />
-                <span className="text-xs font-medium text-warning">Auto-starts in</span>
-                <span className="font-mono text-base font-bold tabular-nums text-warning">{String(thinkLeft).padStart(2, "0")}s</span>
+          </div>
+          <div className="flex items-center gap-2 rounded-full border border-border bg-background px-3 py-1.5">
+            <span className={`h-2 w-2 rounded-full ${phaseTone} ${phase === "recording" || isSpeaking ? "animate-pulse" : ""}`} />
+            <span className="label-mono">{phaseLabel}</span>
+            {phase === "recording" && <span className="ml-2 border-l border-border pl-2"><Timer s={timeLeft} /></span>}
+          </div>
+        </div>
+      </header>
+
+      <div className="mx-auto grid max-w-7xl gap-6 px-6 py-8 md:grid-cols-[1.15fr_1fr]">
+        {/* Interviewer panel */}
+        <section className="surface-card relative overflow-hidden p-0">
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
+          <div className="flex items-center justify-between border-b border-border/70 px-6 py-3">
+            <div className="flex items-center gap-2">
+              <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+              <p className="label-mono">Interviewer</p>
+            </div>
+            <p className="label-mono text-muted-foreground/80">AI Compliance Officer</p>
+          </div>
+          <div className="flex flex-col items-center justify-center px-10 py-12">
+            <div className={`relative h-44 w-44 rounded-full p-[3px] ${isSpeaking ? "animate-pulse-ring bg-gradient-to-br from-primary to-primary/30" : "animate-breathe bg-gradient-to-br from-elevated to-border"}`}>
+              <img src={alexAvatar} alt="Alex, your AI interviewer" className="h-full w-full rounded-full object-cover ring-1 ring-border" />
+              {isSpeaking && (
+                <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 rounded-full bg-primary px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary-foreground shadow-sm">Speaking</span>
+              )}
+            </div>
+            <h2 className="mt-7 text-2xl font-semibold tracking-tight">Alex</h2>
+            <p className="mt-1 text-sm text-muted-foreground">{org?.name}</p>
+            <div className="mt-6 flex items-center gap-2 rounded-full border border-border bg-background/60 px-3 py-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-success" />
+              <span className="text-[11px] font-medium text-muted-foreground">Secured · End-to-end encrypted</span>
+            </div>
+          </div>
+        </section>
+
+        {/* Candidate panel */}
+        <section className="surface-card relative overflow-hidden p-0">
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-success/40 to-transparent" />
+          <div className="flex items-center justify-between border-b border-border/70 px-6 py-3">
+            <div className="flex items-center gap-2">
+              <span className={`h-1.5 w-1.5 rounded-full ${phase === "recording" ? "bg-danger animate-pulse" : "bg-success"}`} />
+              <p className="label-mono">You · Candidate</p>
+            </div>
+            {phase === "ready" && !isSpeaking && currentQuestion && currentQuestion.think_s > 0 ? (
+              <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="flex items-center gap-2 rounded-full bg-warning/10 px-2.5 py-1 ring-1 ring-warning/40">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-warning" />
+                <span className="text-[11px] font-medium text-warning">Starts in {String(thinkLeft).padStart(2, "0")}s</span>
               </motion.div>
+            ) : phase === "recording" ? (
+              <span className="rounded-full bg-danger/10 px-2.5 py-1 text-[11px] font-medium text-danger ring-1 ring-danger/30">● REC</span>
+            ) : (
+              <p className="label-mono text-muted-foreground/80">Camera Live</p>
             )}
           </div>
-          <div className="relative mt-4 flex-1 overflow-hidden rounded-[16px] bg-background">
-            <video ref={videoRef} autoPlay muted playsInline className="h-full w-full object-cover" />
-          </div>
-        </div>
-
-        <div className="md:col-span-2">
-          <div className="surface-card p-8">
-            <AnimatePresence mode="wait">
-              {phase === "intro_playing" ? (
-                <motion.div key="intro" initial={{ opacity: 0, filter: "blur(4px)" }} animate={{ opacity: 1, filter: "blur(0px)" }} exit={{ opacity: 0, filter: "blur(4px)" }} transition={{ duration: 0.4 }}>
-                  <p className="label-mono">Introduction</p>
-                  <p className="mt-3 text-lg leading-relaxed text-muted-foreground">Alex is introducing the interview. Please listen carefully — buttons will appear when it's your turn.</p>
-                </motion.div>
-              ) : phase === "closing" ? (
-                <motion.div key="closing" initial={{ opacity: 0, filter: "blur(4px)" }} animate={{ opacity: 1, filter: "blur(0px)" }} transition={{ duration: 0.4 }}>
-                  <p className="label-mono text-success">Closing</p>
-                  <p className="mt-3 text-lg leading-relaxed">
-                    {closingDone
-                      ? "Alex has finished the closing message. When you're ready, finish and submit your interview for review."
-                      : "Thank you. Alex is delivering the closing message…"}
-                  </p>
-                  {closingDone && (
-                    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="mt-6">
-                      <Button
-                        size="lg"
-                        onClick={() => {
-                          try { audioRef.current?.pause(); } catch { /* noop */ }
-                          try { streamRef.current?.getTracks().forEach((t) => t.stop()); } catch { /* noop */ }
-                          try {
-                            navigate({ to: "/interview/$slug/complete", params: { slug } });
-                          } catch {
-                            window.location.assign(`/interview/${slug}/complete`);
-                          }
-                          window.setTimeout(() => {
-                            if (window.location.pathname.indexOf("/complete") === -1) {
-                              window.location.assign(`/interview/${slug}/complete`);
-                            }
-                          }, 600);
-                        }}
-                        className="bg-success text-success-foreground hover:bg-success/90"
-                      >
-                        Finish & Submit for Review
-                      </Button>
-                      <p className="mt-3 text-xs text-muted-foreground">Your responses are already saved. This will take you to a short feedback form.</p>
-                    </motion.div>
-                  )}
-                </motion.div>
-
-
-              ) : phase === "feedback" && prepFeedback ? (
-                <motion.div key="fb" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
-                  <p className="label-mono text-primary">Coach feedback</p>
-                  <div className="mt-3 flex items-baseline gap-3">
-                    <span className="text-3xl font-semibold tabular-nums">{prepFeedback.score}</span>
-                    <span className="text-sm text-muted-foreground">indicative score</span>
-                  </div>
-                  <p className="mt-4 text-base leading-relaxed">{prepFeedback.feedback}</p>
-                  {prepFeedback.improvement_tip && (
-                    <div className="mt-4 rounded-[12px] border border-primary/30 bg-primary/5 p-4 text-sm leading-relaxed">
-                      <span className="label-mono text-primary">Try this</span>
-                      <p className="mt-2">{prepFeedback.improvement_tip}</p>
-                    </div>
-                  )}
-                </motion.div>
-              ) : currentQuestion ? (
-                <motion.div key={`q-${levelIdx}-${qIdx}-${reasoningCount}`} initial={{ opacity: 0, filter: "blur(4px)", y: 8 }} animate={{ opacity: 1, filter: "blur(0px)", y: 0 }} exit={{ opacity: 0, filter: "blur(4px)" }} transition={{ duration: 0.4 }}>
-                  <p className="label-mono">Question</p>
-                  <h2 className="mt-3 text-2xl font-semibold leading-snug tracking-tight md:text-3xl">{currentQuestion.text}</h2>
-                </motion.div>
-              ) : null}
-            </AnimatePresence>
-
-            <div className="mt-8 flex flex-col items-center gap-2">
-              {phase === "ready" && (
-                <>
-                  <button onClick={startRecording} disabled={isSpeaking} className="inline-flex w-full max-w-sm items-center justify-center gap-2 rounded-[10px] bg-primary px-6 py-4 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-40">
-                    <Mic className="h-4 w-4" /> I am ready — start recording
-                  </button>
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    {isSpeaking
-                      ? "Listen to Alex — the timer starts when the question finishes."
-                      : currentQuestion && currentQuestion.think_s > 0
-                        ? `Recording auto-starts in ${thinkLeft}s. You'll then have up to ${Math.round(currentQuestion.answer_s / 60)} minute(s) to answer.`
-                        : "Recording starts immediately."}
-                  </p>
-                </>
-              )}
-              {phase === "recording" && (
-                <>
-                  <button onClick={submitAnswer} disabled={submittingRef.current} className="inline-flex w-full max-w-sm items-center justify-center gap-2 rounded-[10px] bg-success px-6 py-4 text-sm font-medium text-background hover:opacity-90 disabled:opacity-60">
-                    <CheckCircle className="h-4 w-4" /> Submit answer
-                  </button>
-                  <p className="mt-2 text-xs text-muted-foreground">Once submitted, you cannot re-record this answer.</p>
-                </>
-              )}
-              {phase === "transitioning" && (
-                <ProcessingSteps />
-              )}
-
-              {phase === "feedback" && (
-                <>
-                  {!prepFeedback ? (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Generating feedback…</div>
-                  ) : (
-                    <button onClick={continueFromFeedback} className="inline-flex w-full max-w-sm items-center justify-center gap-2 rounded-[10px] bg-primary px-6 py-4 text-sm font-medium text-primary-foreground hover:opacity-90">
-                      Continue <ArrowRight className="h-4 w-4" />
-                    </button>
-                  )}
-                </>
-              )}
+          <div className="p-4">
+            <div className="relative aspect-video w-full overflow-hidden rounded-[12px] bg-background ring-1 ring-border">
+              <video ref={videoRef} autoPlay muted playsInline className="h-full w-full object-cover" />
+              <div className="pointer-events-none absolute inset-0 rounded-[12px] ring-1 ring-inset ring-foreground/5" />
             </div>
           </div>
+        </section>
+
+        {/* Question / dialogue panel */}
+        <div className="md:col-span-2">
+          <section className="surface-card relative overflow-hidden p-0">
+            <div className="absolute inset-y-0 left-0 w-[3px] bg-gradient-to-b from-primary via-primary/50 to-transparent" />
+            <div className="flex items-center justify-between border-b border-border/70 px-8 py-3">
+              <div className="flex items-center gap-2">
+                <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                <p className="label-mono">
+                  {phase === "intro_playing" ? "Introduction"
+                    : phase === "closing" ? "Closing"
+                    : phase === "feedback" ? "Coach Feedback"
+                    : phase === "transitioning" ? "Processing your response"
+                    : currentQuestion?.is_follow_up ? "Follow-up Question" : "Question"}
+                </p>
+              </div>
+              {currentQuestion && phase !== "intro_playing" && phase !== "closing" && phase !== "feedback" && (
+                <p className="label-mono text-muted-foreground/80">Think {currentQuestion.think_s}s · Answer up to {Math.round(currentQuestion.answer_s / 60)} min</p>
+              )}
+            </div>
+
+            <div className="px-8 py-8">
+              <AnimatePresence mode="wait">
+                {phase === "intro_playing" ? (
+                  <motion.div key="intro" initial={{ opacity: 0, filter: "blur(4px)" }} animate={{ opacity: 1, filter: "blur(0px)" }} exit={{ opacity: 0, filter: "blur(4px)" }} transition={{ duration: 0.4 }}>
+                    <p className="text-lg leading-relaxed text-foreground/80">Alex is introducing the interview. Please listen carefully — buttons will appear when it's your turn.</p>
+                  </motion.div>
+                ) : phase === "closing" ? (
+                  <motion.div key="closing" initial={{ opacity: 0, filter: "blur(4px)" }} animate={{ opacity: 1, filter: "blur(0px)" }} transition={{ duration: 0.4 }}>
+                    <p className="text-lg leading-relaxed">
+                      {closingDone
+                        ? "Alex has finished the closing message. When you're ready, finish and submit your interview for review."
+                        : "Thank you. Alex is delivering the closing message…"}
+                    </p>
+                    {closingDone && (
+                      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="mt-6">
+                        <Button
+                          size="lg"
+                          onClick={() => {
+                            try { audioRef.current?.pause(); } catch { /* noop */ }
+                            try { streamRef.current?.getTracks().forEach((t) => t.stop()); } catch { /* noop */ }
+                            try {
+                              navigate({ to: "/interview/$slug/complete", params: { slug } });
+                            } catch {
+                              window.location.assign(`/interview/${slug}/complete`);
+                            }
+                            window.setTimeout(() => {
+                              if (window.location.pathname.indexOf("/complete") === -1) {
+                                window.location.assign(`/interview/${slug}/complete`);
+                              }
+                            }, 600);
+                          }}
+                          className="bg-success text-success-foreground hover:bg-success/90"
+                        >
+                          Finish & Submit for Review
+                        </Button>
+                        <p className="mt-3 text-xs text-muted-foreground">Your responses are already saved. This will take you to a short feedback form.</p>
+                      </motion.div>
+                    )}
+                  </motion.div>
+                ) : phase === "feedback" && prepFeedback ? (
+                  <motion.div key="fb" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
+                    <div className="flex items-baseline gap-3">
+                      <span className="text-4xl font-semibold tabular-nums tracking-tight">{prepFeedback.score}</span>
+                      <span className="text-sm text-muted-foreground">indicative score</span>
+                    </div>
+                    <p className="mt-4 text-base leading-relaxed">{prepFeedback.feedback}</p>
+                    {prepFeedback.improvement_tip && (
+                      <div className="mt-5 rounded-[12px] border border-primary/25 bg-primary/[0.04] p-4 text-sm leading-relaxed">
+                        <span className="label-mono text-primary">Try this</span>
+                        <p className="mt-2">{prepFeedback.improvement_tip}</p>
+                      </div>
+                    )}
+                  </motion.div>
+                ) : currentQuestion ? (
+                  <motion.div key={`q-${levelIdx}-${qIdx}-${reasoningCount}`} initial={{ opacity: 0, filter: "blur(4px)", y: 8 }} animate={{ opacity: 1, filter: "blur(0px)", y: 0 }} exit={{ opacity: 0, filter: "blur(4px)" }} transition={{ duration: 0.4 }}>
+                    <h2 className="text-2xl font-semibold leading-snug tracking-tight text-foreground md:text-[28px]">
+                      <span className="mr-2 select-none font-serif text-primary/60">“</span>
+                      {currentQuestion.text}
+                    </h2>
+                  </motion.div>
+                ) : null}
+              </AnimatePresence>
+            </div>
+
+            <div className="border-t border-border/70 bg-muted/30 px-8 py-5">
+              <div className="flex flex-col items-center gap-2">
+                {phase === "ready" && (
+                  <>
+                    <button onClick={startRecording} disabled={isSpeaking} className="inline-flex w-full max-w-sm items-center justify-center gap-2 rounded-[10px] bg-primary px-6 py-3.5 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-90 disabled:opacity-40">
+                      <Mic className="h-4 w-4" /> I am ready — start recording
+                    </button>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {isSpeaking
+                        ? "Listen to Alex — the timer starts when the question finishes."
+                        : currentQuestion && currentQuestion.think_s > 0
+                          ? `Recording auto-starts in ${thinkLeft}s. You'll then have up to ${Math.round(currentQuestion.answer_s / 60)} minute(s) to answer.`
+                          : "Recording starts immediately."}
+                    </p>
+                  </>
+                )}
+                {phase === "recording" && (
+                  <>
+                    <button onClick={submitAnswer} disabled={submittingRef.current} className="inline-flex w-full max-w-sm items-center justify-center gap-2 rounded-[10px] bg-success px-6 py-3.5 text-sm font-medium text-success-foreground shadow-sm transition hover:opacity-90 disabled:opacity-60">
+                      <CheckCircle className="h-4 w-4" /> Submit answer
+                    </button>
+                    <p className="mt-1 text-xs text-muted-foreground">Once submitted, you cannot re-record this answer.</p>
+                  </>
+                )}
+                {phase === "transitioning" && <ProcessingSteps />}
+                {phase === "feedback" && (
+                  <>
+                    {!prepFeedback ? (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Generating feedback…</div>
+                    ) : (
+                      <button onClick={continueFromFeedback} className="inline-flex w-full max-w-sm items-center justify-center gap-2 rounded-[10px] bg-primary px-6 py-3.5 text-sm font-medium text-primary-foreground shadow-sm hover:opacity-90">
+                        Continue <ArrowRight className="h-4 w-4" />
+                      </button>
+                    )}
+                  </>
+                )}
+                {(phase === "intro_playing" || phase === "closing") && phase !== "closing" && (
+                  <p className="text-xs text-muted-foreground">Please listen — controls will appear when needed.</p>
+                )}
+              </div>
+            </div>
+          </section>
+
+          <p className="mt-4 text-center text-[11px] text-muted-foreground/70">
+            Confidential compliance interview · Audio &amp; video are recorded for review by the university compliance team.
+          </p>
         </div>
       </div>
     </div>
