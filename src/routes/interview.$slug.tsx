@@ -154,7 +154,7 @@ function InterviewRoom() {
     try {
       if (!audioRef.current) {
         const a = new Audio();
-        a.playsInline = true;
+        (a as unknown as { playsInline: boolean }).playsInline = true;
         a.preload = "auto";
         (a as HTMLAudioElement & { 'webkit-playsinline'?: boolean })['webkit-playsinline'] = true;
         audioRef.current = a;
@@ -207,7 +207,7 @@ function InterviewRoom() {
 
       if (!audioRef.current) {
         audioRef.current = new Audio();
-        audioRef.current.playsInline = true;
+        (audioRef.current as unknown as { playsInline: boolean }).playsInline = true;
         audioRef.current.preload = "auto";
       }
       const audio = audioRef.current;
