@@ -1,5 +1,7 @@
-import { Link } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState, type ReactNode } from "react";
+import { LogOut } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AppShellProps {
   children: ReactNode;
@@ -7,6 +9,22 @@ interface AppShellProps {
 }
 
 export function AppShell({ children, rightSlot }: AppShellProps) {
+  const navigate = useNavigate();
+  const [signedIn, setSignedIn] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setSignedIn(!!data.session));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
+      setSignedIn(!!session);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const onSignOut = async () => {
+    await supabase.auth.signOut();
+    navigate({ to: "/auth", replace: true });
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border">
@@ -20,7 +38,19 @@ export function AppShell({ children, rightSlot }: AppShellProps) {
               <p className="label-mono mt-1">Admissions Intelligence Platform</p>
             </div>
           </Link>
-          {rightSlot}
+          <div className="flex items-center gap-3">
+            {rightSlot}
+            {signedIn && (
+              <button
+                onClick={onSignOut}
+                className="inline-flex items-center gap-2 rounded-[10px] border border-border px-3 py-2 text-sm hover:bg-elevated"
+                aria-label="Sign out"
+              >
+                <LogOut className="h-4 w-4" />
+                Sign out
+              </button>
+            )}
+          </div>
         </div>
       </header>
       <main>{children}</main>
