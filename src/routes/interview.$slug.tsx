@@ -873,11 +873,11 @@ function InterviewRoom() {
 function InterviewRoute() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
 
-  if (pathname.endsWith("/complete")) {
-    return <Outlet />;
-  }
-
-  return <InterviewRoom />;
+  return (
+    <div className="theme-light min-h-screen bg-background text-foreground">
+      {pathname.endsWith("/complete") ? <Outlet /> : <InterviewRoom />}
+    </div>
+  );
 }
 
 function Timer({ s }: { s: number }) {
