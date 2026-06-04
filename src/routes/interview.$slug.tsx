@@ -802,7 +802,10 @@ function InterviewRoom() {
             ) : phase === "recording" ? (
               <span className="rounded-full bg-danger/10 px-2.5 py-1 text-[11px] font-medium text-danger ring-1 ring-danger/30">● REC</span>
             ) : (
-              <p className="label-mono text-muted-foreground/80">Camera Live</p>
+              <div className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-danger animate-pulse" />
+                <span className="label-mono text-muted-foreground/80">Camera Live</span>
+              </div>
             )}
           </div>
           <div className="p-4">
