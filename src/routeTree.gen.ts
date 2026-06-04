@@ -9,6 +9,8 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as InterviewSlugRouteImport } from './routes/interview.$slug'
 import { Route as AuthenticatedConfigureIndexRouteImport } from './routes/_authenticated/configure.index'
@@ -16,6 +18,15 @@ import { Route as InterviewSlugCompleteRouteImport } from './routes/interview.$s
 import { Route as AuthenticatedConfigureOrgIdIndexRouteImport } from './routes/_authenticated/configure.$orgId.index'
 import { Route as AuthenticatedConfigureOrgIdTestTestIdRouteImport } from './routes/_authenticated/configure.$orgId.test.$testId'
 
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -28,9 +39,9 @@ const InterviewSlugRoute = InterviewSlugRouteImport.update({
 } as any)
 const AuthenticatedConfigureIndexRoute =
   AuthenticatedConfigureIndexRouteImport.update({
-    id: '/_authenticated/configure/',
+    id: '/configure/',
     path: '/configure/',
-    getParentRoute: () => rootRouteImport,
+    getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const InterviewSlugCompleteRoute = InterviewSlugCompleteRouteImport.update({
   id: '/complete',
@@ -39,19 +50,20 @@ const InterviewSlugCompleteRoute = InterviewSlugCompleteRouteImport.update({
 } as any)
 const AuthenticatedConfigureOrgIdIndexRoute =
   AuthenticatedConfigureOrgIdIndexRouteImport.update({
-    id: '/_authenticated/configure/$orgId/',
+    id: '/configure/$orgId/',
     path: '/configure/$orgId/',
-    getParentRoute: () => rootRouteImport,
+    getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedConfigureOrgIdTestTestIdRoute =
   AuthenticatedConfigureOrgIdTestTestIdRouteImport.update({
-    id: '/_authenticated/configure/$orgId/test/$testId',
+    id: '/configure/$orgId/test/$testId',
     path: '/configure/$orgId/test/$testId',
-    getParentRoute: () => rootRouteImport,
+    getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
   '/interview/$slug': typeof InterviewSlugRouteWithChildren
   '/interview/$slug/complete': typeof InterviewSlugCompleteRoute
   '/configure/': typeof AuthenticatedConfigureIndexRoute
@@ -60,6 +72,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
   '/interview/$slug': typeof InterviewSlugRouteWithChildren
   '/interview/$slug/complete': typeof InterviewSlugCompleteRoute
   '/configure': typeof AuthenticatedConfigureIndexRoute
@@ -69,6 +82,8 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/auth': typeof AuthRoute
   '/interview/$slug': typeof InterviewSlugRouteWithChildren
   '/interview/$slug/complete': typeof InterviewSlugCompleteRoute
   '/_authenticated/configure/': typeof AuthenticatedConfigureIndexRoute
@@ -79,6 +94,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/auth'
     | '/interview/$slug'
     | '/interview/$slug/complete'
     | '/configure/'
@@ -87,6 +103,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/auth'
     | '/interview/$slug'
     | '/interview/$slug/complete'
     | '/configure'
@@ -95,6 +112,8 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/_authenticated'
+    | '/auth'
     | '/interview/$slug'
     | '/interview/$slug/complete'
     | '/_authenticated/configure/'
@@ -104,14 +123,27 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AuthRoute: typeof AuthRoute
   InterviewSlugRoute: typeof InterviewSlugRouteWithChildren
-  AuthenticatedConfigureIndexRoute: typeof AuthenticatedConfigureIndexRoute
-  AuthenticatedConfigureOrgIdIndexRoute: typeof AuthenticatedConfigureOrgIdIndexRoute
-  AuthenticatedConfigureOrgIdTestTestIdRoute: typeof AuthenticatedConfigureOrgIdTestTestIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -131,7 +163,7 @@ declare module '@tanstack/react-router' {
       path: '/configure'
       fullPath: '/configure/'
       preLoaderRoute: typeof AuthenticatedConfigureIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/interview/$slug/complete': {
       id: '/interview/$slug/complete'
@@ -145,17 +177,33 @@ declare module '@tanstack/react-router' {
       path: '/configure/$orgId'
       fullPath: '/configure/$orgId/'
       preLoaderRoute: typeof AuthenticatedConfigureOrgIdIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/configure/$orgId/test/$testId': {
       id: '/_authenticated/configure/$orgId/test/$testId'
       path: '/configure/$orgId/test/$testId'
       fullPath: '/configure/$orgId/test/$testId'
       preLoaderRoute: typeof AuthenticatedConfigureOrgIdTestTestIdRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
   }
 }
+
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedConfigureIndexRoute: typeof AuthenticatedConfigureIndexRoute
+  AuthenticatedConfigureOrgIdIndexRoute: typeof AuthenticatedConfigureOrgIdIndexRoute
+  AuthenticatedConfigureOrgIdTestTestIdRoute: typeof AuthenticatedConfigureOrgIdTestTestIdRoute
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedConfigureIndexRoute: AuthenticatedConfigureIndexRoute,
+  AuthenticatedConfigureOrgIdIndexRoute: AuthenticatedConfigureOrgIdIndexRoute,
+  AuthenticatedConfigureOrgIdTestTestIdRoute:
+    AuthenticatedConfigureOrgIdTestTestIdRoute,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
 interface InterviewSlugRouteChildren {
   InterviewSlugCompleteRoute: typeof InterviewSlugCompleteRoute
@@ -171,11 +219,9 @@ const InterviewSlugRouteWithChildren = InterviewSlugRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AuthRoute: AuthRoute,
   InterviewSlugRoute: InterviewSlugRouteWithChildren,
-  AuthenticatedConfigureIndexRoute: AuthenticatedConfigureIndexRoute,
-  AuthenticatedConfigureOrgIdIndexRoute: AuthenticatedConfigureOrgIdIndexRoute,
-  AuthenticatedConfigureOrgIdTestTestIdRoute:
-    AuthenticatedConfigureOrgIdTestTestIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
