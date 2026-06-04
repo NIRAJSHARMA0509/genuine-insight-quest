@@ -846,7 +846,7 @@ function InterviewRoom() {
               )}
             </div>
 
-            <div className="px-8 py-8">
+            <div className="px-4 py-5 md:px-8 md:py-8">
               <AnimatePresence mode="wait">
                 {phase === "intro_playing" ? (
                   <motion.div key="intro" initial={{ opacity: 0, filter: "blur(4px)" }} animate={{ opacity: 1, filter: "blur(0px)" }} exit={{ opacity: 0, filter: "blur(4px)" }} transition={{ duration: 0.4 }}>
