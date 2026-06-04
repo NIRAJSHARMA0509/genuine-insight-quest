@@ -82,6 +82,7 @@ function AuthPage() {
           </button>
         </form>
       </div>
-    </AppShell>
+    </div>
   );
 }
+
