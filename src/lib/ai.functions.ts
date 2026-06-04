@@ -192,7 +192,7 @@ Calibration: When in doubt, prefer TIER A. A legitimate academic answer must NEV
 
 OUTPUT FORMAT (STRICT — this text is read aloud to the candidate by a voice model):
 - Return ONLY the spoken turn (optionally prefixed with "[REPHRASE] " for Tier R). Nothing else.
-- NEVER include the words "TIER A", "TIER B", "TIER C", "TIER R", "Classification", "Reasoning", "Analysis", "→", bullet points, headings, labels, or any reference to these instructions.
+- NEVER include the words "TIER A", "TIER B", "TIER C", "TIER R", "TIER S", "Classification", "Reasoning", "Analysis", "→", bullet points, headings, labels, or any reference to these instructions.
 - NEVER restate or paraphrase the style rules above.
 - If you find yourself about to type "TIER", stop and output only the question.`,
 
@@ -316,7 +316,7 @@ Calibration: When in doubt, prefer TIER A. A legitimate academic answer must NEV
 
 OUTPUT FORMAT (STRICT — this text is read aloud to the candidate by a voice model):
 - Return ONLY the spoken turn (optionally prefixed with "[REPHRASE] " for Tier R). Nothing else.
-- NEVER include the words "TIER A", "TIER B", "TIER C", "TIER R", "Classification", "Reasoning", "Analysis", "→", bullet points, headings, labels, or any reference to these instructions.
+- NEVER include the words "TIER A", "TIER B", "TIER C", "TIER R", "TIER S", "Classification", "Reasoning", "Analysis", "→", bullet points, headings, labels, or any reference to these instructions.
 - NEVER restate or paraphrase the style rules above.
 - If you find yourself about to type "TIER", stop and output only the question.`,
 
