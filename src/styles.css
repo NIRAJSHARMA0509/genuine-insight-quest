@@ -82,38 +82,39 @@
    Calm institutional palette: paper white surfaces, soft slate text,
    cobalt primary preserved for brand continuity. */
 .theme-light {
-  --background: oklch(0.985 0.003 250);      /* near-white, faint cool tint */
-  --foreground: oklch(0.22 0.02 265);        /* deep slate ink */
-  --surface: oklch(1 0 0);                   /* pure white card */
-  --elevated: oklch(0.975 0.005 250);        /* subtle off-white */
+  --background: oklch(1 0 0);                /* pure paper white */
+  --foreground: oklch(0.18 0.02 265);        /* near-black ink, strong contrast */
+  --surface: oklch(1 0 0);                   /* white card */
+  --elevated: oklch(0.985 0.004 250);        /* very subtle off-white */
   --card: var(--surface);
   --card-foreground: var(--foreground);
   --popover: var(--surface);
   --popover-foreground: var(--foreground);
-  --primary: oklch(0.55 0.19 263);           /* slightly deeper cobalt for contrast on white */
+  --primary: oklch(0.5 0.2 263);             /* deep cobalt — passes AA on white */
   --primary-foreground: oklch(1 0 0);
-  --primary-glow: oklch(0.55 0.19 263 / 0.12);
-  --secondary: oklch(0.96 0.006 250);
+  --primary-glow: oklch(0.5 0.2 263 / 0.12);
+  --secondary: oklch(0.97 0.005 250);
   --secondary-foreground: var(--foreground);
-  --muted: oklch(0.96 0.006 250);
-  --muted-foreground: oklch(0.5 0.02 260);   /* mid slate */
+  --muted: oklch(0.97 0.005 250);
+  --muted-foreground: oklch(0.4 0.02 260);   /* darker slate — readable secondary */
   --accent: oklch(0.95 0.008 250);
   --accent-foreground: var(--foreground);
-  --success: oklch(0.62 0.16 162);
-  --warning: oklch(0.68 0.16 70);
-  --danger: oklch(0.58 0.22 16);
-  --border: oklch(0.22 0.02 265 / 0.1);
-  --border-active: oklch(0.55 0.19 263 / 0.45);
+  --success: oklch(0.5 0.16 162);
+  --warning: oklch(0.62 0.16 70);
+  --danger: oklch(0.52 0.22 16);
+  --border: oklch(0.18 0.02 265 / 0.14);     /* visible hairline */
+  --border-active: oklch(0.5 0.2 263 / 0.5);
   --input: oklch(1 0 0);
-  --ring: oklch(0.55 0.19 263 / 0.35);
+  --ring: oklch(0.5 0.2 263 / 0.35);
 
-  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 12px 32px rgba(15, 23, 42, 0.06);
-  --shadow-glow: 0 0 28px rgba(59, 111, 255, 0.18);
+  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.05), 0 12px 32px rgba(15, 23, 42, 0.06);
+  --shadow-glow: 0 0 28px rgba(59, 111, 255, 0.16);
 
   background-color: var(--background);
   color: var(--foreground);
   font-feature-settings: "ss01", "cv11";
 }
+
 
 @layer base {
   * { border-color: var(--color-border); }

@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { AppShell } from "@/components/AppShell";
+
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
@@ -35,8 +35,9 @@ function AuthPage() {
   };
 
   return (
-    <AppShell>
+    <div className="theme-light min-h-screen bg-background text-foreground">
       <div className="mx-auto flex max-w-md flex-col gap-6 px-6 py-16">
+
         <div>
           <p className="label-mono">Admin access</p>
           <h1 className="mt-3 text-3xl font-semibold tracking-tight">Sign in to configure tests</h1>
@@ -81,6 +82,7 @@ function AuthPage() {
           </button>
         </form>
       </div>
-    </AppShell>
+    </div>
   );
 }
+
