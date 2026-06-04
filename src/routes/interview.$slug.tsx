@@ -738,23 +738,31 @@ function InterviewRoom() {
   return (
     <div className="min-h-screen bg-background">
       {/* Top brand bar */}
-      <header className="border-b border-border/70 bg-card/60 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-3.5">
-          <div className="flex items-center gap-3">
+      <header className="sticky top-0 z-30 border-b border-border/70 bg-card/80 backdrop-blur">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-2.5 md:px-6 md:py-3.5">
+          <div className="flex min-w-0 items-center gap-2.5 md:gap-3">
             {org?.logo_url ? (
-              <img src={org.logo_url} alt="" className="h-8 w-8 rounded-md object-contain ring-1 ring-border" />
+              <img src={org.logo_url} alt="" className="h-7 w-7 shrink-0 rounded-md object-contain ring-1 ring-border md:h-8 md:w-8" />
             ) : (
-              <div className="h-8 w-8 rounded-md bg-primary/10 ring-1 ring-border" />
+              <div className="h-7 w-7 shrink-0 rounded-md bg-primary/10 ring-1 ring-border md:h-8 md:w-8" />
             )}
-            <div className="leading-tight">
-              <p className="text-sm font-semibold tracking-tight">{org?.name ?? "Compliance Interview"}</p>
-              <p className="label-mono mt-0.5">Compliance Interview · Live Session</p>
+            <div className="min-w-0 leading-tight">
+              <p className="truncate text-sm font-semibold tracking-tight">{org?.name ?? "Compliance Interview"}</p>
+              <p className="label-mono mt-0.5 hidden md:block">Compliance Interview · Live Session</p>
+            </div>
+            {/* Mobile-only compact Alex chip */}
+            <div className="ml-1 flex items-center gap-1.5 rounded-full border border-border bg-background px-1.5 py-0.5 md:hidden">
+              <div className={`relative h-6 w-6 rounded-full p-[1.5px] ${isSpeaking ? "bg-gradient-to-br from-primary to-primary/30" : "bg-gradient-to-br from-elevated to-border"}`}>
+                <img src={alexAvatar} alt="Alex" className="h-full w-full rounded-full object-cover" />
+                {isSpeaking && <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 animate-pulse rounded-full bg-primary ring-1 ring-card" />}
+              </div>
+              <span className="pr-1 text-[11px] font-medium">Alex</span>
             </div>
           </div>
-          <div className="flex items-center gap-2 rounded-full border border-border bg-background px-3 py-1.5">
+          <div className="flex shrink-0 items-center gap-2 rounded-full border border-border bg-background px-2.5 py-1 md:px-3 md:py-1.5">
             <span className={`h-2 w-2 rounded-full ${phaseTone} ${phase === "recording" || isSpeaking ? "animate-pulse" : ""}`} />
             <span className="label-mono">{phaseLabel}</span>
-            {phase === "recording" && <span className="ml-2 border-l border-border pl-2"><Timer s={timeLeft} /></span>}
+            {phase === "recording" && <span className="ml-1.5 border-l border-border pl-1.5 md:ml-2 md:pl-2"><Timer s={timeLeft} /></span>}
           </div>
         </div>
       </header>
