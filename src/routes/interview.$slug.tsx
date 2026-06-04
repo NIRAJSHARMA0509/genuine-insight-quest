@@ -910,7 +910,7 @@ function InterviewRoom() {
               </AnimatePresence>
             </div>
 
-            <div className="border-t border-border/70 bg-muted/30 px-8 py-5">
+            <div className="border-t border-border/70 bg-muted/30 px-4 py-4 md:px-8 md:py-5">
               <div className="flex flex-col items-center gap-2">
                 {phase === "ready" && (
                   <>
