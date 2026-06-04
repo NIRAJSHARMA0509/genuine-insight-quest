@@ -901,7 +901,7 @@ function InterviewRoom() {
                   </motion.div>
                 ) : currentQuestion ? (
                   <motion.div key={`q-${levelIdx}-${qIdx}-${reasoningCount}`} initial={{ opacity: 0, filter: "blur(4px)", y: 8 }} animate={{ opacity: 1, filter: "blur(0px)", y: 0 }} exit={{ opacity: 0, filter: "blur(4px)" }} transition={{ duration: 0.4 }}>
-                    <h2 className="text-2xl font-semibold leading-snug tracking-tight text-foreground md:text-[28px]">
+                    <h2 className="text-xl font-semibold leading-snug tracking-tight text-foreground md:text-[28px]">
                       <span className="mr-2 select-none font-serif text-primary/60">“</span>
                       {currentQuestion.text}
                     </h2>
